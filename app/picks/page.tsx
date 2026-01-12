@@ -48,9 +48,6 @@ export default function PicksPage() {
   const [league, setLeague] = useState<League | null>(null);
   const [weekCfg, setWeekCfg] = useState<WeekCfg | null>(null);
 
-  const [displayName, setDisplayName] = useState("");
-  const [savingName, setSavingName] = useState(false);
-
   // Picks state (UI)
   const [picks, setPicks] = useState<{ 1: string; 2: string }>({ 1: "", 2: "" });
   const [usedTeams, setUsedTeams] = useState<Set<string>>(new Set());
@@ -119,16 +116,6 @@ export default function PicksPage() {
 
       const wc = weekRows[0] as WeekCfg;
       setWeekCfg(wc);
-
-      // 3) Load your display name
-      const { data: meRow, error: meErr } = await supabase
-        .from("league_members")
-        .select("display_name")
-        .eq("league_id", lg.id)
-        .eq("user_id", userId!)
-        .single();
-
-      if (!meErr) setDisplayName(meRow?.display_name ?? "");
 
       // 4) Load your picks for this week
       const { data: pickRows, error: picksErr } = await supabase
@@ -407,41 +394,7 @@ className="text-sm text-gray-900 underline dark:text-zinc-100"
         >
           Sign out
         </button>
-      </header>
-
-      {/* Display name */}
-      <section className="mt-4 rounded border p-4">
-        <h2 className="text-base font-semibold">Display name</h2>
-        <p className="mt-1 text-xs text-gray-500">
-          This is what other players will see after picks are revealed.
-        </p>
-
-        <div className="mt-3 flex gap-2">
-          <input
-            className="flex-1 rounded border p-3"
-            value={displayName}
-            onChange={(e) => setDisplayName(e.target.value)}
-            placeholder="Ex: Jack"
-          />
-          <button
-            className="rounded bg-black px-4 py-3 text-white disabled:opacity-50"
-            disabled={savingName || !displayName.trim()}
-            onClick={async () => {
-              setSavingName(true);
-              const { error } = await supabase
-                .from("league_members")
-                .update({ display_name: displayName.trim() })
-                .eq("league_id", league!.id)
-                .eq("user_id", userId!);
-
-              setSavingName(false);
-              if (error) alert(error.message);
-            }}
-          >
-            {savingName ? "Saving..." : "Save"}
-          </button>
-        </div>
-      </section>
+      </header>      
 
       {/* Bye selection */}
       {weekCfg && (

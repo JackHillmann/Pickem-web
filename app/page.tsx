@@ -7,20 +7,47 @@ import { supabase } from "@/src/lib/supabaseClient";
 export default function HomePage() {
   const router = useRouter();
   const [authed, setAuthed] = useState<boolean | null>(null);
+  const [name, setName] = useState("");
 
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data }) => {
-      setAuthed(!!data.session);
-    });
 
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+useEffect(() => {
+  async function load() {
+    const { data } = await supabase.auth.getSession();
+    setAuthed(!!data.session);
+
+    if (!data.session?.user) return;
+
+    const { data: member } = await supabase
+      .from("league_members")
+      .select("display_name")
+      .eq("user_id", data.session.user.id)
+      .single();
+
+    setName(member?.display_name ?? "");
+  }
+
+  load();
+
+  const { data: sub } = supabase.auth.onAuthStateChange(
+    (_event, session) => {
       setAuthed(!!session);
-    });
+    }
+  );
 
-    return () => {
-      sub.subscription.unsubscribe();
-    };
-  }, []);
+  return () => {
+    sub.subscription.unsubscribe();
+  };
+}, []);
+
+async function saveName() {
+  const { data: session } = await supabase.auth.getSession();
+  if (!session?.session?.user) return;
+
+  await supabase
+    .from("league_members")
+    .update({ display_name: name })
+    .eq("user_id", session.session.user.id);
+}
 
   return (
 <main className="min-h-screen bg-white text-gray-900 dark:bg-zinc-950 dark:text-zinc-50">
@@ -80,6 +107,30 @@ text-gray-900"
             </>
           )}
         </section>
+{authed && (
+  <section className="mt-6 rounded-xl border p-4">
+    <h2 className="text-sm font-semibold">Display name</h2>
+    <p className="mt-1 text-xs text-gray-600">
+      This is what other players will see.
+    </p>
+
+    <div className="mt-3 flex gap-2">
+      <input
+        className="flex-1 rounded border p-2"
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        placeholder="Ex: Jack"
+      />
+
+      <button
+        className="rounded bg-black px-3 py-2 text-white"
+        onClick={saveName}
+      >
+        Save
+      </button>
+    </div>
+  </section>
+)}
 
 <section className="mt-8 rounded-xl border border-gray-300 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900">
           <h2 className="text-sm font-semibold">How it works</h2>
@@ -88,8 +139,8 @@ text-gray-900"
             <li>Weeks 17–18: pick 1 winning team</li>
             <li>No team can be picked more than once all season</li>
             <li>1 bye week allowed (weeks 1–16)</li>
-            <li>Picks lock at the first game (Thursday)</li>
-            <li>Picks are revealed after lock</li>
+            <li>Picks lock when the first game of the week starts</li>
+            <li>Player picks are revealed after lock</li>
           </ul>
         </section>
 
