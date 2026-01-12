@@ -53,7 +53,7 @@ export default function LoginPage() {
         {err && <p className="text-sm text-red-600">{err}</p>}
 
         <button
-          className="w-full rounded bg-black p-3 text-white disabled:opacity-50"
+          className="w-full rounded border p-3 bg-black p-3 text-white disabled:opacity-50"
           disabled={busy}
         >
           {busy ? "Signing in..." : "Sign in"}
