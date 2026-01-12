@@ -24,6 +24,11 @@ type PickRow = {
   team_abbr: string;
 };
 
+type UsedPickRow = {
+  week_number: number;
+  team_abbr: string;
+};
+
 const NFL_TEAMS = [
   "ARI","ATL","BAL","BUF","CAR","CHI","CIN","CLE","DAL","DEN","DET","GB",
   "HOU","IND","JAX","KC","LV","LAC","LAR","MIA","MIN","NE","NO","NYG","NYJ",
@@ -43,15 +48,17 @@ function fmt(dtIso: string) {
 
 export default function PicksPage() {
   const router = useRouter();
-  const { userId, loading } = useRequireAuth();
-  const [saved, setSaved] = useState(false);
+  const { userId, loading } = useRequireAuth();  
 
   const [league, setLeague] = useState<League | null>(null);
   const [weekCfg, setWeekCfg] = useState<WeekCfg | null>(null);
 
   // Picks state (UI)
   const [picks, setPicks] = useState<{ 1: string; 2: string }>({ 1: "", 2: "" });
+
+  // Used teams: keep Set for filtering, plus rows for display (with week)
   const [usedTeams, setUsedTeams] = useState<Set<string>>(new Set());
+  const [usedPickRows, setUsedPickRows] = useState<UsedPickRow[]>([]);
 
   // Bye state
   const [wantsBye, setWantsBye] = useState(false);        // what UI is set to
@@ -138,10 +145,10 @@ export default function PicksPage() {
       (pickRows as PickRow[] | null)?.forEach((r) => (nextPicks[r.slot] = r.team_abbr));
       setPicks(nextPicks);
 
-      // 5) Load used teams this season (for UI filtering)
+      // 5) Load used teams this season (for UI filtering) + include week_number for display
       const { data: usedRows, error: usedErr } = await supabase
         .from("picks")
-        .select("team_abbr")
+        .select("team_abbr,week_number")
         .eq("league_id", lg.id)
         .eq("season_year", lg.season_year)
         .eq("user_id", userId!);
@@ -155,6 +162,8 @@ export default function PicksPage() {
       const used = new Set<string>();
       (usedRows ?? []).forEach((r: any) => used.add(r.team_abbr));
       setUsedTeams(used);
+
+      setUsedPickRows((usedRows ?? []) as UsedPickRow[]);
 
       // 6) Load bye state
       const { data: byeThisWeek } = await supabase
@@ -199,7 +208,7 @@ export default function PicksPage() {
     if (!league) return;
     const { data: usedRows } = await supabase
       .from("picks")
-      .select("team_abbr")
+      .select("team_abbr,week_number")
       .eq("league_id", league.id)
       .eq("season_year", league.season_year)
       .eq("user_id", userId!);
@@ -207,6 +216,8 @@ export default function PicksPage() {
     const used = new Set<string>();
     (usedRows ?? []).forEach((r: any) => used.add(r.team_abbr));
     setUsedTeams(used);
+
+    setUsedPickRows((usedRows ?? []) as UsedPickRow[]);
   }
 
   async function save() {
@@ -261,12 +272,10 @@ export default function PicksPage() {
 
       setSaving(false);
       setMsg("Saved (bye).");
+      
 
-      setSaved(true);
-
-setTimeout(() => {
-  setSaved(false);
-}, 2000);
+      setTimeout(() => {        
+      }, 2000);
       return;
     }
 
@@ -382,16 +391,16 @@ setTimeout(() => {
           </p>
           {weekCfg && (
             <p className="mt-1 text-xs text-gray-500">
-              Locks & Reveals: {fmt(weekCfg.lock_time)} 
+              Locks & Reveals: {fmt(weekCfg.lock_time)}
             </p>
           )}
         </div>
-  <button
-className="text-sm text-gray-900 underline dark:text-zinc-100"
-    onClick={() => router.push("/")}
-  >
-    ← Home
-  </button>
+        <button
+          className="text-sm text-gray-900 underline dark:text-zinc-100"
+          onClick={() => router.push("/")}
+        >
+          ← Home
+        </button>
         <button
           className="rounded border px-3 py-2 text-sm"
           onClick={async () => {
@@ -401,7 +410,7 @@ className="text-sm text-gray-900 underline dark:text-zinc-100"
         >
           Sign out
         </button>
-      </header>      
+      </header>
 
       {/* Bye selection */}
       {weekCfg && (
@@ -456,11 +465,12 @@ className="text-sm text-gray-900 underline dark:text-zinc-100"
             <h2 className="text-base font-semibold">Your picks</h2>
             {locked ? (
               <span className="inline-flex items-center rounded-full bg-red-600 px-2 py-1 text-xs font-semibold text-white ring-1 ring-red-400/50">
-  Locked
-</span>
+                Locked
+              </span>
             ) : (
-              <span className="inline-flex items-center rounded-full bg-emerald-600 px-2 py-1 text-xs font-semibold text-white"
->Open</span>
+              <span className="inline-flex items-center rounded-full bg-emerald-600 px-2 py-1 text-xs font-semibold text-white">
+                Open
+              </span>
             )}
           </div>
 
@@ -473,7 +483,9 @@ className="text-sm text-gray-900 underline dark:text-zinc-100"
                 disabled={locked || wantsBye}
                 onChange={(e) => setPicks((p) => ({ ...p, 1: e.target.value }))}
               >
-                <option value="">{wantsBye ? "Bye selected - Click `Save Picks to Confirm`" : "Select a team"}</option>
+                <option value="">
+                  {wantsBye ? "Bye selected - Click `Save Picks to Confirm`" : "Select a team"}
+                </option>
                 {!wantsBye &&
                   optionsFor(1).map((t) => (
                     <option key={t} value={t}>
@@ -492,7 +504,9 @@ className="text-sm text-gray-900 underline dark:text-zinc-100"
                   disabled={locked || wantsBye}
                   onChange={(e) => setPicks((p) => ({ ...p, 2: e.target.value }))}
                 >
-                  <option value="">{wantsBye ? "Bye selected - Click `Save Picks to Confirm`" : "Select a team"}</option>
+                  <option value="">
+                    {wantsBye ? "Bye selected - Click `Save Picks to Confirm`" : "Select a team"}
+                  </option>
                   {!wantsBye &&
                     optionsFor(2).map((t) => (
                       <option key={t} value={t}>
@@ -520,11 +534,11 @@ className="text-sm text-gray-900 underline dark:text-zinc-100"
               View week page
             </button>
             <button
-  className="w-full rounded border p-3"
-  onClick={() => router.push("/standings")}
->
-  View standings
-</button>
+              className="w-full rounded border p-3"
+              onClick={() => router.push("/standings")}
+            >
+              View standings
+            </button>
           </div>
         </section>
       )}
@@ -535,13 +549,24 @@ className="text-sm text-gray-900 underline dark:text-zinc-100"
         <p className="mt-1 text-xs text-gray-500">
           You can’t pick a team more than once all season.
         </p>
+
         <div className="mt-3 flex flex-wrap gap-2">
-          {[...usedTeams].sort().map((t) => (
-            <span key={t} className="rounded border px-2 py-1 text-xs">
-              {t}
-            </span>
-          ))}
-          {usedTeams.size === 0 && <span className="text-sm text-gray-500">None yet</span>}
+          {usedPickRows
+            .slice()
+            .sort((a, b) => (a.week_number - b.week_number) || a.team_abbr.localeCompare(b.team_abbr))
+            .map((r, idx) => (
+              <span
+                key={`${r.week_number}-${r.team_abbr}-${idx}`}
+                className="rounded border px-2 py-1 text-xs"
+                title={`Week ${r.week_number}`}
+              >
+                W{r.week_number} {r.team_abbr}
+              </span>
+            ))}
+
+          {usedPickRows.length === 0 && (
+            <span className="text-sm text-gray-500">None yet</span>
+          )}
         </div>
       </section>
     </main>

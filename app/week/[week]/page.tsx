@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import { supabase } from "@/src/lib/supabaseClient";
 import { useRequireAuth } from "@/src/lib/useRequireAuth";
+import { useRouter } from "next/navigation";
+
 
 type League = {
   id: string;
@@ -40,6 +42,7 @@ export default function WeekPage() {
   const { userId, loading } = useRequireAuth();
   const params = useParams<{ week: string }>();
   const weekNumber = Number(params.week);
+  const router = useRouter();
 
   const [league, setLeague] = useState<League | null>(null);
   const [weekCfg, setWeekCfg] = useState<WeekCfg | null>(null);
@@ -161,6 +164,15 @@ export default function WeekPage() {
 
   return (
     <main className="mx-auto max-w-lg p-4">
+      <div className="mb-3 flex items-center justify-between">
+  <button
+    className="text-sm underline"
+    onClick={() => router.push("/")}
+  >
+    ← Home
+  </button>
+</div>
+
       <h1 className="text-xl font-semibold">
         {league?.name} • Week {weekNumber}
       </h1>
