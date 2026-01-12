@@ -1,0 +1,21 @@
+/* Better default contrast on mobile */
+:root {
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+  }
+}
+
+/* Ensure inputs are readable on iOS */
+input, select, textarea {
+  color: inherit;
+}
+
+/* Slightly stronger default text rendering */
+body {
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
