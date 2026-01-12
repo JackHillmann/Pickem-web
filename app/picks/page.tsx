@@ -44,6 +44,7 @@ function fmt(dtIso: string) {
 export default function PicksPage() {
   const router = useRouter();
   const { userId, loading } = useRequireAuth();
+  const [saved, setSaved] = useState(false);
 
   const [league, setLeague] = useState<League | null>(null);
   const [weekCfg, setWeekCfg] = useState<WeekCfg | null>(null);
@@ -260,6 +261,12 @@ export default function PicksPage() {
 
       setSaving(false);
       setMsg("Saved (bye).");
+
+      setSaved(true);
+
+setTimeout(() => {
+  setSaved(false);
+}, 2000);
       return;
     }
 

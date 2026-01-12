@@ -8,6 +8,7 @@ export default function HomePage() {
   const router = useRouter();
   const [authed, setAuthed] = useState<boolean | null>(null);
   const [name, setName] = useState("");
+  const [nameSaved, setNameSaved] = useState(false);
 
 
 useEffect(() => {
@@ -47,7 +48,14 @@ async function saveName() {
     .from("league_members")
     .update({ display_name: name })
     .eq("user_id", session.session.user.id);
+
+  setNameSaved(true);
+
+  setTimeout(() => {
+    setNameSaved(false);
+  }, 2000);
 }
+
 
   return (
 <main className="min-h-screen bg-white text-gray-900 dark:bg-zinc-950 dark:text-zinc-50">
@@ -128,6 +136,11 @@ text-gray-900"
       >
         Save
       </button>
+      {nameSaved && (
+  <p className="mt-2 text-sm text-emerald-600">
+    ✓ Name saved
+  </p>
+)}
     </div>
   </section>
 )}
