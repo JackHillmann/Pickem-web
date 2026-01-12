@@ -23,11 +23,11 @@ export default function HomePage() {
   }, []);
 
   return (
-    <main className="min-h-screen bg-white">
-      <div className="mx-auto max-w-lg p-6">
+<main className="min-h-screen bg-white text-gray-900 dark:bg-zinc-950 dark:text-zinc-50">
+  <div className="mx-auto max-w-lg p-6">
         <header className="mt-6">
           <h1 className="text-3xl font-semibold tracking-tight">Pick’em League</h1>
-          <p className="mt-2 text-gray-700">
+<p className="mt-2 text-gray-800 dark:text-zinc-200">
             Pick 2 teams each week (weeks 1–16), then 1 team (weeks 17–18).
             You can only use each team once all season, and you get 1 bye.
           </p>
@@ -69,19 +69,19 @@ export default function HomePage() {
                 Log in
               </button>
 
-              <button
-                className="w-full rounded-xl border px-4 py-3"
-                onClick={() => router.push("/join")}
-              >
-                Join a league
-              </button>
+<button
+  className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-gray-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-50"
+  onClick={() => router.push("/join")}
+>
+  Join a league
+</button>
             </>
           )}
         </section>
 
-        <section className="mt-8 rounded-xl border p-4">
+<section className="mt-8 rounded-xl border border-gray-300 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900">
           <h2 className="text-sm font-semibold">How it works</h2>
-          <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-gray-700">
+<ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-gray-800 dark:text-zinc-200">
             <li>Weeks 1–16: pick 2 winning teams</li>
             <li>Weeks 17–18: pick 1 winning team</li>
             <li>No team can be picked more than once all season</li>
@@ -91,7 +91,7 @@ export default function HomePage() {
           </ul>
         </section>
 
-        <footer className="mt-10 text-center text-xs text-gray-500">
+<footer className="mt-10 text-center text-xs text-gray-600 dark:text-zinc-400">
           No ads, no nonsense BS.
         </footer>
       </div>

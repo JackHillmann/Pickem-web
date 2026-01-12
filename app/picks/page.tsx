@@ -392,7 +392,12 @@ export default function PicksPage() {
             </p>
           )}
         </div>
-
+  <button
+className="text-sm text-gray-900 underline dark:text-zinc-100"
+    onClick={() => router.push("/")}
+  >
+    ← Home
+  </button>
         <button
           className="rounded border px-3 py-2 text-sm"
           onClick={async () => {

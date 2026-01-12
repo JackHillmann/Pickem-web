@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/src/lib/supabaseClient";
 import { useRequireAuth } from "@/src/lib/useRequireAuth";
+import { useRouter } from "next/navigation";
+
 
 type League = {
   id: string;
@@ -22,6 +24,7 @@ type PickResult = {
 
 export default function StandingsPage() {
   const { loading } = useRequireAuth();
+  const router = useRouter();
 
   const [league, setLeague] = useState<League | null>(null);
   const [members, setMembers] = useState<Member[]>([]);
@@ -127,7 +130,20 @@ export default function StandingsPage() {
 
   return (
     <main className="mx-auto max-w-lg p-4">
-      <h1 className="text-xl font-semibold">{league?.name} Standings</h1>
+<div className="mb-3 flex items-center justify-between">
+  <button
+className="text-sm text-gray-900 underline dark:text-zinc-100"
+    onClick={() => router.push("/")}
+  >
+    ← Home
+  </button>
+
+  <h1 className="text-xl font-semibold">
+    {league?.name} Standings
+  </h1>
+
+  <div /> {/* spacer */}
+</div>
       <p className="mt-1 text-sm text-gray-600">Season {league?.season_year}</p>
 
       {err && (
