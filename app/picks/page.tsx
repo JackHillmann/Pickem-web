@@ -46,6 +46,22 @@ function fmt(dtIso: string) {
   });
 }
 
+function fmtCountdown(ms: number) {
+  const clamped = Math.max(0, ms);
+  const totalSeconds = Math.floor(clamped / 1000);
+
+  const days = Math.floor(totalSeconds / 86400);
+  const hours = Math.floor((totalSeconds % 86400) / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  const hh = String(hours).padStart(2, "0");
+  const mm = String(minutes).padStart(2, "0");
+  const ss = String(seconds).padStart(2, "0");
+
+  return days > 0 ? `${days}d ${hh}:${mm}:${ss}` : `${hh}:${mm}:${ss}`;
+}
+
 export default function PicksPage() {
   const router = useRouter();
   const { userId, loading } = useRequireAuth();  
@@ -69,11 +85,27 @@ export default function PicksPage() {
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
+  const [msToLock, setMsToLock] = useState<number | null>(null);
 
-  const locked = useMemo(() => {
-    if (!weekCfg) return false;
-    return Date.now() >= new Date(weekCfg.lock_time).getTime();
-  }, [weekCfg]);
+
+const locked = msToLock !== null ? msToLock <= 0 : false;
+useEffect(() => {
+  if (!weekCfg?.lock_time) {
+    setMsToLock(null);
+    return;
+  }
+
+  const lockAt = new Date(weekCfg.lock_time).getTime();
+
+  const tick = () => {
+    setMsToLock(lockAt - Date.now());
+  };
+
+  tick(); // set immediately on mount / week change
+  const id = window.setInterval(tick, 1000);
+
+  return () => window.clearInterval(id);
+}, [weekCfg?.lock_time]);
 
   useEffect(() => {
     if (loading) return;
@@ -462,17 +494,33 @@ export default function PicksPage() {
       {weekCfg && (
         <section className="mt-4 rounded border p-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-base font-semibold">Your picks</h2>
-            {locked ? (
-              <span className="inline-flex items-center rounded-full bg-red-600 px-2 py-1 text-xs font-semibold text-white ring-1 ring-red-400/50">
-                Locked
-              </span>
-            ) : (
-              <span className="inline-flex items-center rounded-full bg-emerald-600 px-2 py-1 text-xs font-semibold text-white">
-                Open
-              </span>
-            )}
-          </div>
+  <div>
+    <h2 className="text-base font-semibold">Your picks</h2>
+
+    {!locked && weekCfg && msToLock !== null && (
+      <p className="mt-1 text-xs text-gray-500">
+        Edits close in <span className="font-medium">{fmtCountdown(msToLock)}</span>
+      </p>
+    )}
+
+    {locked && weekCfg && (
+      <p className="mt-1 text-xs text-gray-500">
+        Locked at <span className="font-medium">{fmt(weekCfg.lock_time)}</span>
+      </p>
+    )}
+  </div>
+
+  {locked ? (
+    <span className="inline-flex items-center rounded-full bg-red-600 px-2 py-1 text-xs font-semibold text-white ring-1 ring-red-400/50">
+      Locked
+    </span>
+  ) : (
+    <span className="inline-flex items-center rounded-full bg-emerald-600 px-2 py-1 text-xs font-semibold text-white">
+      Open
+    </span>
+  )}
+</div>
+
 
           <div className="mt-4 space-y-4">
             <div>
