@@ -15,7 +15,7 @@ type League = {
 
 type WeekCfg = {
   picks_required: 1 | 2;
-  lock_time: string;   // timestamptz ISO
+  lock_time: string; // timestamptz ISO
   reveal_time: string; // timestamptz ISO
 };
 
@@ -29,11 +29,12 @@ type UsedPickRow = {
   team_abbr: string;
 };
 
-const NFL_TEAMS = [
-  "ARI","ATL","BAL","BUF","CAR","CHI","CIN","CLE","DAL","DEN","DET","GB",
-  "HOU","IND","JAX","KC","LV","LAC","LAR","MIA","MIN","NE","NO","NYG","NYJ",
-  "PHI","PIT","SEA","SF","TB","TEN","WAS"
-];
+type GameRow = {
+  kickoff_time: string;
+  home_abbr: string;
+  away_abbr: string;
+  status?: string;
+};
 
 function fmt(dtIso: string) {
   const d = new Date(dtIso);
@@ -64,20 +65,23 @@ function fmtCountdown(ms: number) {
 
 export default function PicksPage() {
   const router = useRouter();
-  const { userId, loading } = useRequireAuth();  
+  const { userId, loading } = useRequireAuth();
 
   const [league, setLeague] = useState<League | null>(null);
   const [weekCfg, setWeekCfg] = useState<WeekCfg | null>(null);
 
   // Picks state (UI)
-  const [picks, setPicks] = useState<{ 1: string; 2: string }>({ 1: "", 2: "" });
+  const [picks, setPicks] = useState<{ 1: string; 2: string }>({
+    1: "",
+    2: "",
+  });
 
   // Used teams: keep Set for filtering, plus rows for display (with week)
   const [usedTeams, setUsedTeams] = useState<Set<string>>(new Set());
   const [usedPickRows, setUsedPickRows] = useState<UsedPickRow[]>([]);
 
   // Bye state
-  const [wantsBye, setWantsBye] = useState(false);        // what UI is set to
+  const [wantsBye, setWantsBye] = useState(false); // what UI is set to
   const [byeExistsThisWeek, setByeExistsThisWeek] = useState(false); // what's in DB
   const [byeUsedThisSeason, setByeUsedThisSeason] = useState(false); // any bye row this season
 
@@ -86,26 +90,37 @@ export default function PicksPage() {
   const [err, setErr] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
   const [msToLock, setMsToLock] = useState<number | null>(null);
+  const [games, setGames] = useState<GameRow[]>([]);
 
+  const locked = msToLock !== null ? msToLock <= 0 : false;
 
-const locked = msToLock !== null ? msToLock <= 0 : false;
-useEffect(() => {
-  if (!weekCfg?.lock_time) {
-    setMsToLock(null);
-    return;
-  }
+  const teamsPlaying = useMemo(() => {
+    const s = new Set<string>();
+    games.forEach((g) => {
+      s.add(g.home_abbr);
+      s.add(g.away_abbr);
+    });
 
-  const lockAt = new Date(weekCfg.lock_time).getTime();
+    return Array.from(s).sort((a, b) => a.localeCompare(b));
+  }, [games]);
 
-  const tick = () => {
-    setMsToLock(lockAt - Date.now());
-  };
+  useEffect(() => {
+    if (!weekCfg?.lock_time) {
+      setMsToLock(null);
+      return;
+    }
 
-  tick(); // set immediately on mount / week change
-  const id = window.setInterval(tick, 1000);
+    const lockAt = new Date(weekCfg.lock_time).getTime();
 
-  return () => window.clearInterval(id);
-}, [weekCfg?.lock_time]);
+    const tick = () => {
+      setMsToLock(lockAt - Date.now());
+    };
+
+    tick(); // set immediately on mount / week change
+    const id = window.setInterval(tick, 1000);
+
+    return () => window.clearInterval(id);
+  }, [weekCfg?.lock_time]);
 
   useEffect(() => {
     if (loading) return;
@@ -149,13 +164,30 @@ useEffect(() => {
         return;
       }
       if (!weekRows || weekRows.length === 0) {
-        setErr("Week config not found (weeks table). Add a row for this league/week.");
+        setErr(
+          "Week config not found (weeks table). Add a row for this league/week."
+        );
         setBusy(false);
         return;
       }
 
       const wc = weekRows[0] as WeekCfg;
       setWeekCfg(wc);
+      // 3) Load NFL games for this week (GLOBAL games table)
+      const { data: gameRows, error: gamesErr } = await supabase
+        .from("games")
+        .select("kickoff_time,home_abbr,away_abbr,status")
+        .eq("season_year", lg.season_year)
+        .eq("week_number", lg.current_week)
+        .order("kickoff_time", { ascending: true });
+
+      if (gamesErr) {
+        setErr(gamesErr.message);
+        setBusy(false);
+        return;
+      }
+
+      setGames((gameRows ?? []) as GameRow[]);
 
       // 4) Load your picks for this week
       const { data: pickRows, error: picksErr } = await supabase
@@ -174,7 +206,9 @@ useEffect(() => {
       }
 
       const nextPicks = { 1: "", 2: "" };
-      (pickRows as PickRow[] | null)?.forEach((r) => (nextPicks[r.slot] = r.team_abbr));
+      (pickRows as PickRow[] | null)?.forEach(
+        (r) => (nextPicks[r.slot] = r.team_abbr)
+      );
       setPicks(nextPicks);
 
       // 5) Load used teams this season (for UI filtering) + include week_number for display
@@ -228,12 +262,18 @@ useEffect(() => {
   }, [loading, router, userId]);
 
   function optionsFor(slot: 1 | 2) {
-    const allowed = NFL_TEAMS.filter((t) => {
-      if (picks[slot] === t) return true;
-      return !usedTeams.has(t);
+    // Only allow teams actually playing this week
+    const pool = teamsPlaying; // no fallback
+
+    const allowed = pool.filter((t) => {
+      if (picks[slot] === t) return true; // allow current selection
+      return !usedTeams.has(t); // block used teams
     });
 
-    return allowed.filter((t) => (slot === 1 ? t !== picks[2] : t !== picks[1]));
+    // Prevent duplicate picks
+    return allowed.filter((t) =>
+      slot === 1 ? t !== picks[2] : t !== picks[1]
+    );
   }
 
   async function refreshUsedTeams() {
@@ -304,10 +344,8 @@ useEffect(() => {
 
       setSaving(false);
       setMsg("Saved (bye).");
-      
 
-      setTimeout(() => {        
-      }, 2000);
+      setTimeout(() => {}, 2000);
       return;
     }
 
@@ -383,9 +421,9 @@ useEffect(() => {
       });
     }
 
-    const { error: upErr } = await supabase
-      .from("picks")
-      .upsert(rows, { onConflict: "league_id,season_year,week_number,user_id,slot" });
+    const { error: upErr } = await supabase.from("picks").upsert(rows, {
+      onConflict: "league_id,season_year,week_number,user_id,slot",
+    });
 
     if (upErr) {
       setSaving(false);
@@ -451,7 +489,8 @@ useEffect(() => {
             <div>
               <h2 className="text-base font-semibold">Bye week</h2>
               <p className="mt-1 text-xs text-gray-500">
-                You can use 1 bye per season (weeks 1–16 only). Selecting a bye means you make no picks this week.
+                You can use 1 bye per season (weeks 1–16 only). Selecting a bye
+                means you make no picks this week.
               </p>
             </div>
 
@@ -476,10 +515,14 @@ useEffect(() => {
           </div>
 
           {league!.current_week > 16 && (
-            <p className="mt-2 text-xs text-gray-600">Bye is not available in weeks 17–18.</p>
+            <p className="mt-2 text-xs text-gray-600">
+              Bye is not available in weeks 17–18.
+            </p>
           )}
           {byeUsedThisSeason && !byeExistsThisWeek && (
-            <p className="mt-2 text-xs text-gray-600">You already used your bye this season.</p>
+            <p className="mt-2 text-xs text-gray-600">
+              You already used your bye this season.
+            </p>
           )}
         </section>
       )}
@@ -494,33 +537,33 @@ useEffect(() => {
       {weekCfg && (
         <section className="mt-4 rounded border p-4">
           <div className="flex items-center justify-between">
-  <div>
-    <h2 className="text-base font-semibold">Your picks</h2>
+            <div>
+              <h2 className="text-base font-semibold">Your picks</h2>
+              {!locked && weekCfg && msToLock !== null && (
+                <p className="mt-1 text-xs text-gray-500">
+                  Edits close in{" "}
+                  <span className="font-medium">{fmtCountdown(msToLock)}</span>
+                </p>
+              )}
 
-    {!locked && weekCfg && msToLock !== null && (
-      <p className="mt-1 text-xs text-gray-500">
-        Edits close in <span className="font-medium">{fmtCountdown(msToLock)}</span>
-      </p>
-    )}
+              {locked && weekCfg && (
+                <p className="mt-1 text-xs text-gray-500">
+                  Locked at{" "}
+                  <span className="font-medium">{fmt(weekCfg.lock_time)}</span>
+                </p>
+              )}
+            </div>
 
-    {locked && weekCfg && (
-      <p className="mt-1 text-xs text-gray-500">
-        Locked at <span className="font-medium">{fmt(weekCfg.lock_time)}</span>
-      </p>
-    )}
-  </div>
-
-  {locked ? (
-    <span className="inline-flex items-center rounded-full bg-red-600 px-2 py-1 text-xs font-semibold text-white ring-1 ring-red-400/50">
-      Locked
-    </span>
-  ) : (
-    <span className="inline-flex items-center rounded-full bg-emerald-600 px-2 py-1 text-xs font-semibold text-white">
-      Open
-    </span>
-  )}
-</div>
-
+            {locked ? (
+              <span className="inline-flex items-center rounded-full bg-red-600 px-2 py-1 text-xs font-semibold text-white ring-1 ring-red-400/50">
+                Locked
+              </span>
+            ) : (
+              <span className="inline-flex items-center rounded-full bg-emerald-600 px-2 py-1 text-xs font-semibold text-white">
+                Open
+              </span>
+            )}
+          </div>
 
           <div className="mt-4 space-y-4">
             <div>
@@ -532,7 +575,9 @@ useEffect(() => {
                 onChange={(e) => setPicks((p) => ({ ...p, 1: e.target.value }))}
               >
                 <option value="">
-                  {wantsBye ? "Bye selected - Click `Save Picks to Confirm`" : "Select a team"}
+                  {wantsBye
+                    ? "Bye selected - Click `Save Picks to Confirm`"
+                    : "Select a team"}
                 </option>
                 {!wantsBye &&
                   optionsFor(1).map((t) => (
@@ -550,10 +595,14 @@ useEffect(() => {
                   className="w-full rounded border p-3"
                   value={picks[2]}
                   disabled={locked || wantsBye}
-                  onChange={(e) => setPicks((p) => ({ ...p, 2: e.target.value }))}
+                  onChange={(e) =>
+                    setPicks((p) => ({ ...p, 2: e.target.value }))
+                  }
                 >
                   <option value="">
-                    {wantsBye ? "Bye selected - Click `Save Picks to Confirm`" : "Select a team"}
+                    {wantsBye
+                      ? "Bye selected - Click `Save Picks to Confirm`"
+                      : "Select a team"}
                   </option>
                   {!wantsBye &&
                     optionsFor(2).map((t) => (
@@ -601,7 +650,11 @@ useEffect(() => {
         <div className="mt-3 flex flex-wrap gap-2">
           {usedPickRows
             .slice()
-            .sort((a, b) => (a.week_number - b.week_number) || a.team_abbr.localeCompare(b.team_abbr))
+            .sort(
+              (a, b) =>
+                a.week_number - b.week_number ||
+                a.team_abbr.localeCompare(b.team_abbr)
+            )
             .map((r, idx) => (
               <span
                 key={`${r.week_number}-${r.team_abbr}-${idx}`}
