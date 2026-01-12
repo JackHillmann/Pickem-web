@@ -119,11 +119,11 @@ text-gray-900"
         className="flex-1 rounded border p-2"
         value={name}
         onChange={(e) => setName(e.target.value)}
-        placeholder="Ex: Jack"
+        placeholder="Ex: Curly Lambeau"
       />
 
       <button
-        className="rounded bg-black px-3 py-2 text-white"
+        className="rounded border p-2 bg-black px-3 py-2 text-white"
         onClick={saveName}
       >
         Save
