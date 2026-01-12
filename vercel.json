@@ -1,0 +1,12 @@
+{
+  "crons": [
+    {
+      "path": "/api/sync-week",
+      "schedule": "0 15 * * 2"
+    },
+    {
+      "path": "/api/grade-week",
+      "schedule": "*/15 * * * *"
+    }
+  ]
+}
