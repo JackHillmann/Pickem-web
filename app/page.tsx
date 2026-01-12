@@ -37,7 +37,7 @@ export default function HomePage() {
           {authed ? (
             <>
               <button
-                className="w-full rounded-xl bg-black px-4 py-3 text-white"
+                className="w-full rounded-xl border px-4 py-3"
                 onClick={() => router.push("/picks")}
               >
                 Go to picks

@@ -543,7 +543,7 @@ className="text-sm text-gray-900 underline dark:text-zinc-100"
             )}
 
             <button
-              className="w-full rounded bg-black p-3 text-white disabled:opacity-50"
+              className="w-full rounded border p-3"
               disabled={locked || saving}
               onClick={save}
             >
