@@ -167,7 +167,7 @@ export default function WeekPage() {
 
       {weekCfg && (
         <p className="mt-1 text-xs text-gray-600">
-          Locks: {fmt(weekCfg.lock_time)} • Reveals: {fmt(weekCfg.reveal_time)} •{" "}
+          Locks & Reveals: {fmt(weekCfg.lock_time)} •{" "}
           {revealed ? "Revealed" : "Hidden until kickoff"}
         </p>
       )}

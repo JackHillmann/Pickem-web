@@ -388,7 +388,7 @@ export default function PicksPage() {
           </p>
           {weekCfg && (
             <p className="mt-1 text-xs text-gray-500">
-              Locks: {fmt(weekCfg.lock_time)} • Reveals: {fmt(weekCfg.reveal_time)}
+              Locks & Reveals: {fmt(weekCfg.lock_time)} 
             </p>
           )}
         </div>
