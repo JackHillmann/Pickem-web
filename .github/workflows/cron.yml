@@ -2,21 +2,32 @@ name: Pickem Scheduler
 
 on:
   schedule:
-    - cron: "*/5 * * * *"   # grade every 5 min
-    - cron: "0 16 * * *"    # daily sync
+    - cron: "*/5 * * * *"   # every 5 min: sync games + grade
+    - cron: "0 16 * * *"    # daily: sync-week (advance week, etc.)
   workflow_dispatch: {}
 
 jobs:
   run:
     runs-on: ubuntu-latest
     steps:
-      - name: Grade week
+      # ---- Every 5 minutes ----
+      - name: Sync games (every 5 min)
+        if: github.event.schedule == '*/5 * * * *'
+        run: |
+          curl -sS -X POST "${{ secrets.APP_URL }}/api/sync-games" \
+            -H "content-type: application/json" \
+            -H "x-cron-secret: ${{ secrets.CRON_SECRET }}" \
+            -d "{}"
+
+      - name: Grade week (every 5 min)
+        if: github.event.schedule == '*/5 * * * *'
         run: |
           curl -sS -X POST "${{ secrets.APP_URL }}/api/grade-week" \
             -H "content-type: application/json" \
             -H "x-cron-secret: ${{ secrets.CRON_SECRET }}" \
             -d "{}"
 
+      # ---- Daily ----
       - name: Sync week (daily)
         if: github.event.schedule == '0 16 * * *'
         run: |
