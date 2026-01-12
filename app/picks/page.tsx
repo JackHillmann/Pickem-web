@@ -495,9 +495,11 @@ className="text-sm text-gray-900 underline dark:text-zinc-100"
           <div className="flex items-center justify-between">
             <h2 className="text-base font-semibold">Your picks</h2>
             {locked ? (
-              <span className="rounded bg-gray-100 px-2 py-1 text-xs">Locked</span>
+              <span className="inline-flex items-center rounded-full bg-zinc-800 px-2 py-1 text-xs font-semibold text-white ring-1 ring-white/10"
+>Locked</span>
             ) : (
-              <span className="rounded bg-green-50 px-2 py-1 text-xs text-green-700">Open</span>
+              <span className="inline-flex items-center rounded-full bg-emerald-600 px-2 py-1 text-xs font-semibold text-white"
+>Open</span>
             )}
           </div>
 
