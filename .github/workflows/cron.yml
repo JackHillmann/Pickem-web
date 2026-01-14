@@ -3,18 +3,25 @@ name: Pickem Scheduler
 on:
   schedule:
     - cron: "*/5 * * * *" # every 5 min: sync games + grade
-    - cron: "0 16 * * *" # daily: sync-week
-  workflow_dispatch: {}
+    - cron: "0 16 * * *" # daily: sync-week (16:00 UTC)
+  workflow_dispatch:
+    inputs:
+      run_sync_week:
+        description: "Also run sync-week?"
+        required: false
+        default: "false"
 
 jobs:
   run:
     runs-on: ubuntu-latest
     steps:
       # ------------------------
-      # EVERY 5 MINUTES
+      # EVERY 5 MINUTES (or manual run)
       # ------------------------
       - name: Sync games
-        if: github.event.schedule == '*/5 * * * *'
+        if: >
+          (github.event_name == 'schedule' && github.event.schedule == '*/5 * * * *') ||
+          (github.event_name == 'workflow_dispatch')
         run: |
           echo "==> Syncing NFL games"
           curl -fsS -X POST "${{ secrets.APP_URL }}/api/sync-games" \
@@ -23,7 +30,9 @@ jobs:
             -d "{}"
 
       - name: Grade week
-        if: github.event.schedule == '*/5 * * * *'
+        if: >
+          (github.event_name == 'schedule' && github.event.schedule == '*/5 * * * *') ||
+          (github.event_name == 'workflow_dispatch')
         run: |
           echo "==> Grading picks"
           curl -fsS -X POST "${{ secrets.APP_URL }}/api/grade-week" \
@@ -32,10 +41,12 @@ jobs:
             -d "{}"
 
       # ------------------------
-      # DAILY
+      # DAILY (or optionally manual)
       # ------------------------
       - name: Sync week config
-        if: github.event.schedule == '0 16 * * *'
+        if: >
+          (github.event_name == 'schedule' && github.event.schedule == '0 16 * * *') ||
+          (github.event_name == 'workflow_dispatch' && inputs.run_sync_week == 'true')
         run: |
           echo "==> Syncing week config"
           curl -fsS -X POST "${{ secrets.APP_URL }}/api/sync-week" \
