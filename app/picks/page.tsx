@@ -694,7 +694,7 @@ export default function PicksPage() {
             className="w-full rounded border p-3"
             onClick={() => router.push(`/week/${league?.current_week}`)}
           >
-            This Week's Picks
+            League Weekly Picks
           </button>
 
           <button
