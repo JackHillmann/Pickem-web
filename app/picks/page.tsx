@@ -685,23 +685,23 @@ export default function PicksPage() {
         <div className="mt-4 space-y-3">
           <button
             className="w-full rounded border p-3"
-            onClick={() => router.push(`/week/${league?.current_week}`)}
+            onClick={() => router.push("/matchups")}
           >
-            View week page
+            NFL Matchups this week
           </button>
 
           <button
             className="w-full rounded border p-3"
-            onClick={() => router.push("/matchups")}
+            onClick={() => router.push(`/week/${league?.current_week}`)}
           >
-            View matchups
+            This Week's Picks
           </button>
 
           <button
             className="w-full rounded border p-3"
             onClick={() => router.push("/standings")}
           >
-            View standings
+            Season Standings
           </button>
         </div>
       </section>
