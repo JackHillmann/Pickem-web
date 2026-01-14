@@ -104,6 +104,14 @@ export default function PicksPage() {
     return Array.from(s).sort((a, b) => a.localeCompare(b));
   }, [games]);
 
+  const [resultByWeekTeam, setResultByWeekTeam] = useState<
+    Map<string, "win" | "loss" | "pending">
+  >(new Map());
+
+  function keyWeekTeam(week: number, team: string) {
+    return `${week}:${team}`;
+  }
+
   useEffect(() => {
     if (!weekCfg?.lock_time) {
       setMsToLock(null);
@@ -225,6 +233,26 @@ export default function PicksPage() {
         return;
       }
 
+      // 5b) Load pick_results for coloring used picks
+      const { data: prRows, error: prErr } = await supabase
+        .from("pick_results")
+        .select("week_number,team_abbr,result")
+        .eq("league_id", lg.id)
+        .eq("season_year", lg.season_year)
+        .eq("user_id", userId!);
+
+      if (prErr) {
+        setErr(prErr.message);
+        setBusy(false);
+        return;
+      }
+
+      const m = new Map<string, "win" | "loss" | "pending">();
+      (prRows ?? []).forEach((r: any) => {
+        m.set(keyWeekTeam(r.week_number, r.team_abbr), r.result);
+      });
+      setResultByWeekTeam(m);
+
       const used = new Set<string>();
       (usedRows ?? []).forEach((r: any) => used.add(r.team_abbr));
       setUsedTeams(used);
@@ -278,6 +306,8 @@ export default function PicksPage() {
 
   async function refreshUsedTeams() {
     if (!league) return;
+
+    // used picks
     const { data: usedRows } = await supabase
       .from("picks")
       .select("team_abbr,week_number")
@@ -285,11 +315,28 @@ export default function PicksPage() {
       .eq("season_year", league.season_year)
       .eq("user_id", userId!);
 
+    const allUsed = (usedRows ?? []) as UsedPickRow[];
+    setUsedPickRows(allUsed);
+
     const used = new Set<string>();
-    (usedRows ?? []).forEach((r: any) => used.add(r.team_abbr));
+    allUsed
+      .filter((r) => r.week_number !== league.current_week) // eligibility rule
+      .forEach((r) => used.add(r.team_abbr));
     setUsedTeams(used);
 
-    setUsedPickRows((usedRows ?? []) as UsedPickRow[]);
+    // results coloring
+    const { data: prRows } = await supabase
+      .from("pick_results")
+      .select("week_number,team_abbr,result")
+      .eq("league_id", league.id)
+      .eq("season_year", league.season_year)
+      .eq("user_id", userId!);
+
+    const m = new Map<string, "win" | "loss" | "pending">();
+    (prRows ?? []).forEach((r: any) => {
+      m.set(keyWeekTeam(r.week_number, r.team_abbr), r.result);
+    });
+    setResultByWeekTeam(m);
   }
 
   async function save() {
@@ -633,7 +680,7 @@ export default function PicksPage() {
               className="w-full rounded border p-3"
               onClick={() => router.push(`/week/${league?.current_week}`)}
             >
-              View week page
+              View All Weekly Picks
             </button>
             <button
               className="w-full rounded border p-3"
@@ -660,19 +707,28 @@ export default function PicksPage() {
                 a.week_number - b.week_number ||
                 a.team_abbr.localeCompare(b.team_abbr)
             )
-            .map((r, idx) => (
-              <span
-                key={`${r.week_number}-${r.team_abbr}-${idx}`}
-                className="rounded border px-2 py-1 text-xs"
-                title={`Week ${r.week_number}`}
-              >
-                W{r.week_number} {r.team_abbr}
-              </span>
-            ))}
+            .map((r, idx) => {
+              const res =
+                resultByWeekTeam.get(keyWeekTeam(r.week_number, r.team_abbr)) ??
+                "pending";
 
-          {usedPickRows.length === 0 && (
-            <span className="text-sm text-gray-500">None yet</span>
-          )}
+              const cls =
+                res === "win"
+                  ? "rounded border border-emerald-300 bg-emerald-50 px-2 py-1 text-xs text-emerald-800"
+                  : res === "loss"
+                  ? "rounded border border-red-300 bg-red-50 px-2 py-1 text-xs text-red-800"
+                  : "rounded border px-2 py-1 text-xs text-gray-700";
+
+              return (
+                <span
+                  key={`${r.week_number}-${r.team_abbr}-${idx}`}
+                  className={cls}
+                  title={`Week ${r.week_number} • ${res}`}
+                >
+                  W{r.week_number} {r.team_abbr}
+                </span>
+              );
+            })}
         </div>
       </section>
     </main>
