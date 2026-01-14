@@ -3,7 +3,8 @@ import { supabaseAdmin } from "@/src/lib/supabaseAdmin";
 
 function mustBeCron(req: Request) {
   const isVercelCron = req.headers.get("x-vercel-cron") === "1";
-  const hasSecret = req.headers.get("x-cron-secret") === process.env.CRON_SECRET;
+  const hasSecret =
+    req.headers.get("x-cron-secret") === process.env.CRON_SECRET;
   if (!isVercelCron && !hasSecret) throw new Error("Unauthorized");
 }
 
@@ -72,10 +73,22 @@ export async function POST(req: Request) {
       };
     });
 
+    const { error: delErr } = await supabaseAdmin
+      .from("pick_results")
+      .delete()
+      .eq("league_id", league_id)
+      .eq("season_year", season_year)
+      .eq("week_number", week_number);
+
+    if (delErr) throw delErr;
+
     if (results.length > 0) {
-      const { error: prErr } = await supabaseAdmin.from("pick_results").upsert(results, {
-        onConflict: "league_id,season_year,week_number,user_id,slot",
-      });
+      const { error: prErr } = await supabaseAdmin
+        .from("pick_results")
+        .upsert(results, {
+          onConflict: "league_id,season_year,week_number,user_id,slot",
+        });
+
       if (prErr) throw prErr;
     }
 
