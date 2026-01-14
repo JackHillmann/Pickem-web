@@ -83,6 +83,8 @@ export default function MatchupsPage() {
   useEffect(() => {
     if (!league) return;
 
+    const seasonYear = league.season_year;
+
     async function loadGames() {
       setErr(null);
       setBusy(true);
@@ -92,7 +94,7 @@ export default function MatchupsPage() {
         .select(
           "game_id,week_number,kickoff_time,status,home_abbr,away_abbr,home_score,away_score,winner_abbr"
         )
-        .eq("season_year", league.season_year)
+        .eq("season_year", seasonYear)
         .eq("week_number", week)
         .order("kickoff_time", { ascending: true });
 
