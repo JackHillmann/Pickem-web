@@ -286,7 +286,7 @@ export default function PicksPage() {
       .eq("user_id", userId!);
 
     const used = new Set<string>();
-    (usedRows ?? []).forEach((r: anys) => used.add(r.team_abbr));
+    (usedRows ?? []).forEach((r: any) => used.add(r.team_abbr));
     setUsedTeams(used);
 
     setUsedPickRows((usedRows ?? []) as UsedPickRow[]);
