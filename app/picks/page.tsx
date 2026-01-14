@@ -662,35 +662,42 @@ export default function PicksPage() {
             )}
 
             <button
-              className="w-full rounded border p-3"
+              className="w-full rounded bg-black p-3 text-white shadow-sm disabled:opacity-50"
               disabled={locked || saving}
               onClick={save}
             >
-              {saving ? "Saving..." : "Save picks"}
+              {saving ? "Saving..." : wantsBye ? "Save bye" : "Save picks"}
             </button>
-            <button
-              className="w-full rounded border p-3"
-              onClick={() => router.push("/matchups")}
-            >
-              View matchups
-            </button>
-            {msg && <p className="text-sm text-green-700">{msg}</p>}
 
-            <button
-              className="w-full rounded border p-3"
-              onClick={() => router.push(`/week/${league?.current_week}`)}
-            >
-              View All Weekly Picks
-            </button>
-            <button
-              className="w-full rounded border p-3"
-              onClick={() => router.push("/standings")}
-            >
-              View standings
-            </button>
+            {msg && <p className="text-sm text-green-700">{msg}</p>}
           </div>
         </section>
       )}
+      {/* Views */}
+      <section className="mt-4 rounded border p-4">
+        <div className="mt-4 space-y-3">
+          <button
+            className="w-full rounded border p-3"
+            onClick={() => router.push(`/week/${league?.current_week}`)}
+          >
+            View week page
+          </button>
+
+          <button
+            className="w-full rounded border p-3"
+            onClick={() => router.push("/matchups")}
+          >
+            View matchups
+          </button>
+
+          <button
+            className="w-full rounded border p-3"
+            onClick={() => router.push("/standings")}
+          >
+            View standings
+          </button>
+        </div>
+      </section>
 
       {/* Used teams */}
       <section className="mt-4 rounded border p-4">
