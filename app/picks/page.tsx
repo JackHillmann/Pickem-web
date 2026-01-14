@@ -662,7 +662,14 @@ export default function PicksPage() {
             )}
 
             <button
-              className="w-full rounded bg-black p-3 text-white shadow-sm disabled:opacity-50"
+              className="
+    w-full rounded-lg p-3 font-semibold
+    bg-emerald-600 text-white
+    shadow-md
+    hover:bg-emerald-700
+    disabled:opacity-50
+    disabled:cursor-not-allowed
+  "
               disabled={locked || saving}
               onClick={save}
             >
