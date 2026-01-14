@@ -10,61 +10,59 @@ export default function HomePage() {
   const [name, setName] = useState("");
   const [nameSaved, setNameSaved] = useState(false);
 
+  useEffect(() => {
+    async function load() {
+      const { data } = await supabase.auth.getSession();
+      setAuthed(!!data.session);
 
-useEffect(() => {
-  async function load() {
-    const { data } = await supabase.auth.getSession();
-    setAuthed(!!data.session);
+      if (!data.session?.user) return;
 
-    if (!data.session?.user) return;
+      const { data: member } = await supabase
+        .from("league_members")
+        .select("display_name")
+        .eq("user_id", data.session.user.id)
+        .single();
 
-    const { data: member } = await supabase
+      setName(member?.display_name ?? "");
+    }
+
+    load();
+
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+      setAuthed(!!session);
+    });
+
+    return () => {
+      sub.subscription.unsubscribe();
+    };
+  }, []);
+
+  async function saveName() {
+    const { data: session } = await supabase.auth.getSession();
+    if (!session?.session?.user) return;
+
+    await supabase
       .from("league_members")
-      .select("display_name")
-      .eq("user_id", data.session.user.id)
-      .single();
+      .update({ display_name: name })
+      .eq("user_id", session.session.user.id);
 
-    setName(member?.display_name ?? "");
+    setNameSaved(true);
+
+    setTimeout(() => {
+      setNameSaved(false);
+    }, 2000);
   }
 
-  load();
-
-  const { data: sub } = supabase.auth.onAuthStateChange(
-    (_event, session) => {
-      setAuthed(!!session);
-    }
-  );
-
-  return () => {
-    sub.subscription.unsubscribe();
-  };
-}, []);
-
-async function saveName() {
-  const { data: session } = await supabase.auth.getSession();
-  if (!session?.session?.user) return;
-
-  await supabase
-    .from("league_members")
-    .update({ display_name: name })
-    .eq("user_id", session.session.user.id);
-
-  setNameSaved(true);
-
-  setTimeout(() => {
-    setNameSaved(false);
-  }, 2000);
-}
-
-
   return (
-<main className="min-h-screen bg-white text-gray-900 dark:bg-zinc-950 dark:text-zinc-50">
-  <div className="mx-auto max-w-lg p-6">
+    <main className="min-h-screen bg-white text-gray-900 dark:bg-zinc-950 dark:text-zinc-50">
+      <div className="mx-auto max-w-lg p-6">
         <header className="mt-6">
-          <h1 className="text-3xl font-semibold tracking-tight">Pick’em League</h1>
-<p className="mt-2 text-gray-800 dark:text-zinc-200">
-            Pick 2 teams each week (weeks 1–16), then 1 team (weeks 17–18).
-            You can only use each team once all season, and you get 1 bye.
+          <h1 className="text-3xl font-semibold tracking-tight">
+            Pick’em League
+          </h1>
+          <p className="mt-2 text-gray-800 dark:text-zinc-200">
+            Pick 2 teams each week (weeks 1–16), then 1 team (weeks 17–18). You
+            can only use each team once all season, and you get 1 bye.
           </p>
         </header>
 
@@ -76,13 +74,6 @@ async function saveName() {
                 onClick={() => router.push("/picks")}
               >
                 Go to picks
-              </button>
-
-              <button
-                className="w-full rounded-xl border px-4 py-3"
-                onClick={() => router.push("/standings")}
-              >
-                View standings
               </button>
 
               <button
@@ -104,50 +95,48 @@ async function saveName() {
                 Log in
               </button>
 
-<button
-  className="border-gray-400
+              <button
+                className="border-gray-400
 
 text-gray-900"
-  onClick={() => router.push("/join")}
->
-  Join a league
-</button>
+                onClick={() => router.push("/join")}
+              >
+                Join a league
+              </button>
             </>
           )}
         </section>
-{authed && (
-  <section className="mt-6 rounded-xl border p-4">
-    <h2 className="text-sm font-semibold">Display name</h2>
-    <p className="mt-1 text-xs text-gray-600">
-      This is what other players will see.
-    </p>
+        {authed && (
+          <section className="mt-6 rounded-xl border p-4">
+            <h2 className="text-sm font-semibold">Display name</h2>
+            <p className="mt-1 text-xs text-gray-600">
+              This is what other players will see.
+            </p>
 
-    <div className="mt-3 flex gap-2">
-      <input
-        className="flex-1 rounded border p-2"
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        placeholder="Ex: Curly Lambeau"
-      />
+            <div className="mt-3 flex gap-2">
+              <input
+                className="flex-1 rounded border p-2"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Ex: Curly Lambeau"
+              />
 
-      <button
-        className="rounded border p-2 bg-black px-3 py-2 text-white"
-        onClick={saveName}
-      >
-        Save
-      </button>
-      {nameSaved && (
-  <p className="mt-2 text-sm text-emerald-600">
-    ✓ Name saved
-  </p>
-)}
-    </div>
-  </section>
-)}
+              <button
+                className="rounded border p-2 bg-black px-3 py-2 text-white"
+                onClick={saveName}
+              >
+                Save
+              </button>
+              {nameSaved && (
+                <p className="mt-2 text-sm text-emerald-600">✓ Name saved</p>
+              )}
+            </div>
+          </section>
+        )}
 
-<section className="mt-8 rounded-xl border border-gray-300 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900">
+        <section className="mt-8 rounded-xl border border-gray-300 bg-white p-4 dark:border-zinc-700 dark:bg-zinc-900">
           <h2 className="text-sm font-semibold">How it works</h2>
-<ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-gray-800 dark:text-zinc-200">
+          <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-gray-800 dark:text-zinc-200">
             <li>Weeks 1–16: pick 2 winning teams</li>
             <li>Weeks 17–18: pick 1 winning team</li>
             <li>No team can be picked more than once all season</li>
@@ -157,7 +146,7 @@ text-gray-900"
           </ul>
         </section>
 
-<footer className="mt-10 text-center text-xs text-gray-600 dark:text-zinc-400">
+        <footer className="mt-10 text-center text-xs text-gray-600 dark:text-zinc-400">
           No ads, no nonsense BS.
         </footer>
       </div>
