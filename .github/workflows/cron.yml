@@ -3,7 +3,8 @@ name: Pickem Scheduler
 on:
   schedule:
     - cron: "*/5 * * * *" # every 5 min: sync games + grade
-    - cron: "0 16 * * *" # daily: sync-week (16:00 UTC)
+    - cron: "0 16 * * *" # daily: sync-week
+    - cron: "7 * * * *" # hourly: advance-week check
   workflow_dispatch:
     inputs:
       run_sync_week:
@@ -39,6 +40,18 @@ jobs:
             -H "content-type: application/json" \
             -H "x-cron-secret: ${{ secrets.CRON_SECRET }}" \
             -d "{}"
+
+      # # ------------------------
+      # # HOURLY: advance-week check
+      # # ------------------------
+      # - name: Advance week (if current week is fully final)
+      #   if: github.event_name == 'schedule' && github.event.schedule == '7 * * * *'
+      #   run: |
+      #     echo "==> Checking if we should advance to next week"
+      #     curl -fsS -X POST "${{ secrets.APP_URL }}/api/advance-week" \
+      #       -H "content-type: application/json" \
+      #       -H "x-cron-secret: ${{ secrets.CRON_SECRET }}" \
+      #       -d "{}"
 
       # ------------------------
       # DAILY (or optionally manual)
