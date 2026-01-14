@@ -3,7 +3,8 @@ import { supabaseAdmin } from "@/src/lib/supabaseAdmin";
 
 function mustBeCron(req: Request) {
   const isVercelCron = req.headers.get("x-vercel-cron") === "1";
-  const hasSecret = req.headers.get("x-cron-secret") === process.env.CRON_SECRET;
+  const hasSecret =
+    req.headers.get("x-cron-secret") === process.env.CRON_SECRET;
   if (!isVercelCron && !hasSecret) throw new Error("Unauthorized");
 }
 
@@ -23,7 +24,9 @@ async function getLeagueContext() {
   };
 }
 
-function mapStatus(state: string | undefined): "scheduled" | "inprogress" | "final" {
+function mapStatus(
+  state: string | undefined
+): "scheduled" | "inprogress" | "final" {
   if (state === "in") return "inprogress";
   if (state === "post") return "final";
   return "scheduled";
@@ -41,14 +44,19 @@ export async function POST(req: Request) {
     const season_type = Number(body.season_type ?? 2);
     const provider = String(body.provider ?? "espn");
 
-    const url = new URL("https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard");
+    const url = new URL(
+      "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard"
+    );
     url.searchParams.set("seasontype", String(season_type));
     url.searchParams.set("week", String(week_number));
     // ESPN accepts this commonly; if it ever returns empty, we can adjust to "season" param.
     url.searchParams.set("dates", String(season_year));
 
-    const r = await fetch(url.toString(), { headers: { accept: "application/json" } });
-    if (!r.ok) throw new Error(`ESPN fetch failed: ${r.status} ${await r.text()}`);
+    const r = await fetch(url.toString(), {
+      headers: { accept: "application/json" },
+    });
+    if (!r.ok)
+      throw new Error(`ESPN fetch failed: ${r.status} ${await r.text()}`);
 
     const json: any = await r.json();
     const events: any[] = json.events ?? [];
@@ -101,7 +109,13 @@ export async function POST(req: Request) {
     }
 
     if (rows.length === 0) {
-      return NextResponse.json({ ok: true, season_year, week_number, upserted: 0, note: "No events returned" });
+      return NextResponse.json({
+        ok: true,
+        season_year,
+        week_number,
+        upserted: 0,
+        note: "No events returned",
+      });
     }
 
     const { error: upErr } = await supabaseAdmin

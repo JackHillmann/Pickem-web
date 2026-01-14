@@ -28,7 +28,7 @@ jobs:
           curl -fsS -X POST "${{ secrets.APP_URL }}/api/sync-games" \
             -H "content-type: application/json" \
             -H "x-cron-secret: ${{ secrets.CRON_SECRET }}" \
-            -d "{}"
+            -d '{"season_type":3}'
 
       - name: Grade week
         if: >
