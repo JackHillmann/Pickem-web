@@ -8,17 +8,18 @@ function mustBeCron(req: Request) {
   if (!isVercelCron && !hasSecret) throw new Error("Unauthorized");
 }
 
-async function getLeagueContext() {
+async function getLeagueContextById(league_id: string) {
   const { data, error } = await supabaseAdmin
     .from("leagues")
-    .select("season_year,current_week")
-    .limit(1)
+    .select("id,season_year,current_week")
+    .eq("id", league_id)
     .single();
 
   if (error) throw error;
   if (!data) throw new Error("League not found");
 
   return {
+    league_id: data.id,
     season_year: data.season_year,
     week_number: data.current_week,
   };
@@ -36,12 +37,18 @@ export async function POST(req: Request) {
   try {
     mustBeCron(req);
 
-    const body = await req.json().catch(() => ({}));
-    const ctx = await getLeagueContext();
+    const body = await req.json().catch(() => ({} as any));
+
+    const league_id = String(body.league_id ?? "").trim();
+    if (!league_id) {
+      return NextResponse.json({ error: "Missing league_id" }, { status: 400 });
+    }
+
+    const ctx = await getLeagueContextById(league_id);
 
     const season_year = Number(body.season_year ?? ctx.season_year);
     const week_number = Number(body.week_number ?? ctx.week_number);
-    const season_type = Number(body.season_type ?? 2);
+    const season_type = Number(body.season_type ?? 2); // 2=regular, 3=postseason
     const provider = String(body.provider ?? "espn");
 
     const url = new URL(
@@ -49,7 +56,6 @@ export async function POST(req: Request) {
     );
     url.searchParams.set("seasontype", String(season_type));
     url.searchParams.set("week", String(week_number));
-    // ESPN accepts this commonly; if it ever returns empty, we can adjust to "season" param.
     url.searchParams.set("dates", String(season_year));
 
     const r = await fetch(url.toString(), {
@@ -89,11 +95,10 @@ export async function POST(req: Request) {
       if (completed && home_score != null && away_score != null) {
         if (home_score > away_score) winner_abbr = home_abbr;
         else if (away_score > home_score) winner_abbr = away_abbr;
-        else winner_abbr = null; // tie
       }
 
       rows.push({
-        league_id: null, // global table usage; requires league_id nullable
+        league_id: ctx.league_id,
         season_year,
         week_number,
         provider,
@@ -111,6 +116,7 @@ export async function POST(req: Request) {
     if (rows.length === 0) {
       return NextResponse.json({
         ok: true,
+        league_id: ctx.league_id,
         season_year,
         week_number,
         upserted: 0,
@@ -120,12 +126,13 @@ export async function POST(req: Request) {
 
     const { error: upErr } = await supabaseAdmin
       .from("games")
-      .upsert(rows, { onConflict: "season_year,game_id" });
+      .upsert(rows, { onConflict: "league_id,season_year,game_id" });
 
     if (upErr) throw upErr;
 
     return NextResponse.json({
       ok: true,
+      league_id: ctx.league_id,
       season_year,
       week_number,
       upserted: rows.length,

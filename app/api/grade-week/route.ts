@@ -8,20 +8,24 @@ function mustBeCron(req: Request) {
   if (!isVercelCron && !hasSecret) throw new Error("Unauthorized");
 }
 
-async function getLeagueContext() {
+async function getLeagueContextFromBody(req: Request) {
+  const body = await req.json().catch(() => ({} as any));
+  const league_id = String(body.league_id ?? "").trim();
+  if (!league_id) throw new Error("Missing league_id");
+
   const { data, error } = await supabaseAdmin
     .from("leagues")
     .select("id,season_year,current_week")
-    .limit(1)
+    .eq("id", league_id)
     .single();
 
   if (error) throw error;
   if (!data) throw new Error("League not found");
 
   return {
-    league_id: data.id,
-    season_year: data.season_year,
-    week_number: data.current_week,
+    league_id: data.id as string,
+    season_year: data.season_year as number,
+    week_number: data.current_week as number,
   };
 }
 
@@ -29,7 +33,8 @@ export async function POST(req: Request) {
   try {
     mustBeCron(req);
 
-    const { league_id, season_year, week_number } = await getLeagueContext();
+    const { league_id, season_year, week_number } =
+      await getLeagueContextFromBody(req);
 
     // 1) Load all picks for this league/week
     const { data: allPicks, error: picksErr } = await supabaseAdmin
@@ -41,10 +46,11 @@ export async function POST(req: Request) {
 
     if (picksErr) throw picksErr;
 
-    // 2) Load games for this week (GLOBAL) + compute winners
+    // 2) Load games for THIS league/week + compute winners
     const { data: games, error: gamesErr } = await supabaseAdmin
       .from("games")
-      .select("home_abbr,away_abbr,status,winner_abbr")
+      .select("status,winner_abbr")
+      .eq("league_id", league_id)
       .eq("season_year", season_year)
       .eq("week_number", week_number);
 
@@ -73,6 +79,7 @@ export async function POST(req: Request) {
       };
     });
 
+    // Clear then write for deterministic re-runs
     const { error: delErr } = await supabaseAdmin
       .from("pick_results")
       .delete()
@@ -88,12 +95,14 @@ export async function POST(req: Request) {
         .upsert(results, {
           onConflict: "league_id,season_year,week_number,user_id,slot",
         });
-
       if (prErr) throw prErr;
     }
 
     return NextResponse.json({
       ok: true,
+      league_id,
+      season_year,
+      week_number,
       picksFound: allPicks?.length ?? 0,
       gamesFound: games?.length ?? 0,
       resultsWritten: results.length,

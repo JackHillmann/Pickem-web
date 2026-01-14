@@ -9,14 +9,9 @@ function mustBeCron(req: Request) {
 }
 
 function getBaseUrl(req: Request) {
-  // Prefer explicit APP_URL if you set it (recommended)
   if (process.env.APP_URL) return process.env.APP_URL;
-
-  // Vercel provides VERCEL_URL without protocol
   const vercel = process.env.VERCEL_URL;
   if (vercel) return `https://${vercel}`;
-
-  // Fallback for local dev
   const u = new URL(req.url);
   return `${u.protocol}//${u.host}`;
 }
@@ -37,110 +32,160 @@ async function postJson(baseUrl: string, path: string, body: any) {
   return text ? JSON.parse(text) : {};
 }
 
+async function getLeagueById(league_id: string) {
+  const { data, error } = await supabaseAdmin
+    .from("leagues")
+    .select("id,name,season_year,current_week")
+    .eq("id", league_id)
+    .single();
+
+  if (error) throw error;
+  if (!data) throw new Error("League not found");
+
+  return data as {
+    id: string;
+    name: string;
+    season_year: number;
+    current_week: number;
+  };
+}
+
+async function espnHasGames(
+  season_year: number,
+  week_number: number,
+  season_type: number
+) {
+  const url = new URL(
+    "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard"
+  );
+  url.searchParams.set("seasontype", String(season_type)); // 2=regular, 3=postseason
+  url.searchParams.set("week", String(week_number));
+  url.searchParams.set("dates", String(season_year));
+
+  const r = await fetch(url.toString(), {
+    headers: { accept: "application/json" },
+    cache: "no-store",
+  });
+  if (!r.ok)
+    throw new Error(`ESPN fetch failed: ${r.status} ${await r.text()}`);
+
+  const json: any = await r.json();
+  const events: any[] = json.events ?? [];
+  return events.length > 0;
+}
+
 export async function POST(req: Request) {
   try {
     mustBeCron(req);
 
     const baseUrl = getBaseUrl(req);
+    const body = await req.json().catch(() => ({} as any));
 
-    // Get leagues (support multiple leagues safely)
-    const { data: leagues, error: leaguesErr } = await supabaseAdmin
-      .from("leagues")
-      .select("id,name,season_year,current_week")
-      .order("created_at", { ascending: true });
+    const league_id = String(body.league_id ?? "").trim();
+    if (!league_id) {
+      return NextResponse.json({ error: "Missing league_id" }, { status: 400 });
+    }
 
-    if (leaguesErr) throw leaguesErr;
-    if (!leagues || leagues.length === 0) {
+    // Defaults for regular season, but you can pass season_type:3 for playoffs
+    const season_type = Number(body.season_type ?? 2);
+
+    const lg = await getLeagueById(league_id);
+
+    if (lg.current_week >= 18) {
       return NextResponse.json({
         ok: true,
-        advanced: 0,
-        note: "No leagues found",
-      });
-    }
-
-    const results: any[] = [];
-
-    for (const lg of leagues as any[]) {
-      const league_id = lg.id as string;
-      const season_year = lg.season_year as number;
-      const current_week = lg.current_week as number;
-
-      if (current_week >= 18) {
-        results.push({
-          league_id,
-          name: lg.name,
-          advanced: false,
-          reason: "Already week 18",
-        });
-        continue;
-      }
-
-      // Check whether current week games are all final
-      const { data: games, error: gamesErr } = await supabaseAdmin
-        .from("games")
-        .select("status")
-        .eq("season_year", season_year)
-        .eq("week_number", current_week);
-
-      if (gamesErr) throw gamesErr;
-
-      const count = (games ?? []).length;
-      const allFinal =
-        count > 0 && (games ?? []).every((g: any) => g.status === "final");
-
-      if (!allFinal) {
-        results.push({
-          league_id,
-          name: lg.name,
-          advanced: false,
-          reason:
-            count === 0
-              ? "No games found for current week"
-              : "Not all games final",
-          season_year,
-          current_week,
-          games_found: count,
-        });
-        continue;
-      }
-
-      const next_week = current_week + 1;
-
-      // Advance league week
-      const { error: updErr } = await supabaseAdmin
-        .from("leagues")
-        .update({ current_week: next_week })
-        .eq("id", league_id);
-
-      if (updErr) throw updErr;
-
-      // Immediately pull games for the new week so week config can derive lock_time
-      const syncGamesRes = await postJson(baseUrl, "/api/sync-games", {
-        season_year,
-        week_number: next_week,
-      });
-
-      // Now create/update the weeks row (lock/reveal/picks_required) based on new week's games
-      const syncWeekRes = await postJson(baseUrl, "/api/sync-week", {});
-
-      results.push({
         league_id,
-        name: lg.name,
-        advanced: true,
-        season_year,
-        from_week: current_week,
-        to_week: next_week,
-        sync_games: syncGamesRes,
-        sync_week: syncWeekRes,
+        advanced: false,
+        reason: "Already week 18",
+        season_year: lg.season_year,
+        current_week: lg.current_week,
       });
     }
 
-    const advancedCount = results.filter((r) => r.advanced).length;
+    // Check whether current week games are all final (LEAGUE-SCOPED)
+    const { data: games, error: gamesErr } = await supabaseAdmin
+      .from("games")
+      .select("status")
+      .eq("league_id", league_id)
+      .eq("season_year", lg.season_year)
+      .eq("week_number", lg.current_week);
+
+    if (gamesErr) throw gamesErr;
+
+    const count = (games ?? []).length;
+    const allFinal =
+      count > 0 && (games ?? []).every((g: any) => g.status === "final");
+
+    if (!allFinal) {
+      return NextResponse.json({
+        ok: true,
+        league_id,
+        advanced: false,
+        reason:
+          count === 0
+            ? "No games found for current week"
+            : "Not all games final",
+        season_year: lg.season_year,
+        current_week: lg.current_week,
+        games_found: count,
+      });
+    }
+
+    const next_week = lg.current_week + 1;
+
+    // SAFETY CHECK: verify next week exists at the provider before advancing
+    const hasNextWeek = await espnHasGames(
+      lg.season_year,
+      next_week,
+      season_type
+    );
+    if (!hasNextWeek) {
+      return NextResponse.json({
+        ok: true,
+        league_id,
+        advanced: false,
+        reason: "Next week has no games at provider (ESPN) — not advancing",
+        season_year: lg.season_year,
+        from_week: lg.current_week,
+        to_week: next_week,
+        season_type,
+      });
+    }
+
+    // Advance league week
+    const { error: updErr } = await supabaseAdmin
+      .from("leagues")
+      .update({ current_week: next_week })
+      .eq("id", league_id);
+
+    if (updErr) throw updErr;
+
+    // Sync games for the new week (must include league_id; season_type for playoffs)
+    const syncGamesRes = await postJson(baseUrl, "/api/sync-games", {
+      league_id,
+      season_type,
+      season_year: lg.season_year,
+      week_number: next_week,
+    });
+
+    // Sync week config for the new week (must include league_id)
+    const syncWeekRes = await postJson(baseUrl, "/api/sync-week", {
+      league_id,
+      season_year: lg.season_year,
+      week_number: next_week,
+    });
 
     return NextResponse.json({
       ok: true,
-      advanced: advancedCount,
-      results,
+      league_id,
+      name: lg.name,
+      advanced: true,
+      season_year: lg.season_year,
+      season_type,
+      from_week: lg.current_week,
+      to_week: next_week,
+      sync_games: syncGamesRes,
+      sync_week: syncWeekRes,
     });
   } catch (e: any) {
     console.error("advance-week error:", e);

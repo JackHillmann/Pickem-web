@@ -28,7 +28,7 @@ jobs:
           curl -fsS -X POST "${{ secrets.APP_URL }}/api/sync-games" \
             -H "content-type: application/json" \
             -H "x-cron-secret: ${{ secrets.CRON_SECRET }}" \
-            -d '{"season_type":3}'
+            -d '{"season_type":3, "league_id":"${{ secrets.LEAGUE_ID }}"}'
 
       - name: Grade week
         if: >
@@ -39,19 +39,19 @@ jobs:
           curl -fsS -X POST "${{ secrets.APP_URL }}/api/grade-week" \
             -H "content-type: application/json" \
             -H "x-cron-secret: ${{ secrets.CRON_SECRET }}" \
-            -d "{}"
+            -d '{"league_id":"${{ secrets.LEAGUE_ID }}"}'
 
-      # # ------------------------
-      # # HOURLY: advance-week check
-      # # ------------------------
-      # - name: Advance week (if current week is fully final)
-      #   if: github.event_name == 'schedule' && github.event.schedule == '7 * * * *'
-      #   run: |
-      #     echo "==> Checking if we should advance to next week"
-      #     curl -fsS -X POST "${{ secrets.APP_URL }}/api/advance-week" \
-      #       -H "content-type: application/json" \
-      #       -H "x-cron-secret: ${{ secrets.CRON_SECRET }}" \
-      #       -d "{}"
+      # ------------------------
+      # HOURLY: advance-week check
+      # ------------------------
+      - name: Advance week (if current week is fully final)
+        if: github.event_name == 'schedule' && github.event.schedule == '7 * * * *'
+        run: |
+          echo "==> Checking if we should advance to next week"
+          curl -fsS -X POST "${{ secrets.APP_URL }}/api/advance-week" \
+            -H "content-type: application/json" \
+            -H "x-cron-secret: ${{ secrets.CRON_SECRET }}" \
+            -d '{"league_id":"${{ secrets.LEAGUE_ID }}","season_type":3}'
 
       # ------------------------
       # DAILY (or optionally manual)
@@ -65,4 +65,4 @@ jobs:
           curl -fsS -X POST "${{ secrets.APP_URL }}/api/sync-week" \
             -H "content-type: application/json" \
             -H "x-cron-secret: ${{ secrets.CRON_SECRET }}" \
-            -d "{}"
+            -d '{"league_id":"${{ secrets.LEAGUE_ID }}"}'
