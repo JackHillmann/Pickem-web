@@ -621,7 +621,12 @@ export default function PicksPage() {
             >
               {saving ? "Saving..." : "Save picks"}
             </button>
-
+            <button
+              className="w-full rounded border p-3"
+              onClick={() => router.push("/matchups")}
+            >
+              View matchups
+            </button>
             {msg && <p className="text-sm text-green-700">{msg}</p>}
 
             <button
