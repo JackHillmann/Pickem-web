@@ -16,7 +16,12 @@ function getBaseUrl(req: Request) {
   return `${u.protocol}//${u.host}`;
 }
 
-async function postJson(baseUrl: string, path: string, body: any) {
+/**
+ * Like your old postJson, but DOES NOT throw.
+ * Returns status + parsed json (if any) so advance-week can decide
+ * whether this is "retry later" (200) vs "unexpected" (500).
+ */
+async function postJsonSafe(baseUrl: string, path: string, body: any) {
   const r = await fetch(`${baseUrl}${path}`, {
     method: "POST",
     headers: {
@@ -28,8 +33,19 @@ async function postJson(baseUrl: string, path: string, body: any) {
   });
 
   const text = await r.text();
-  if (!r.ok) throw new Error(`${path} failed: ${r.status} ${text}`);
-  return text ? JSON.parse(text) : {};
+  let json: any = null;
+  try {
+    json = text ? JSON.parse(text) : null;
+  } catch {
+    json = null;
+  }
+
+  return {
+    ok: r.ok,
+    status: r.status,
+    json,
+    text,
+  };
 }
 
 async function getLeagueById(league_id: string) {
@@ -54,7 +70,9 @@ async function espnHasGames(
   season_year: number,
   week_number: number,
   season_type: number
-) {
+): Promise<
+  { ok: true; hasGames: boolean } | { ok: false; status: number; error: string }
+> {
   const url = new URL(
     "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard"
   );
@@ -66,12 +84,15 @@ async function espnHasGames(
     headers: { accept: "application/json" },
     cache: "no-store",
   });
-  if (!r.ok)
-    throw new Error(`ESPN fetch failed: ${r.status} ${await r.text()}`);
 
-  const json: any = await r.json();
+  if (!r.ok) {
+    const t = await r.text().catch(() => "");
+    return { ok: false, status: r.status, error: t || "ESPN error" };
+  }
+
+  const json: any = await r.json().catch(() => ({}));
   const events: any[] = json.events ?? [];
-  return events.length > 0;
+  return { ok: true, hasGames: events.length > 0 };
 }
 
 export async function POST(req: Request) {
@@ -133,13 +154,25 @@ export async function POST(req: Request) {
 
     const next_week = lg.current_week + 1;
 
-    // SAFETY CHECK: verify next week exists at the provider before advancing
-    const hasNextWeek = await espnHasGames(
-      lg.season_year,
-      next_week,
-      season_type
-    );
-    if (!hasNextWeek) {
+    // Provider existence check
+    const provider = await espnHasGames(lg.season_year, next_week, season_type);
+    if (!provider.ok) {
+      // retry-later, not a server crash
+      return NextResponse.json({
+        ok: true,
+        league_id,
+        advanced: false,
+        reason: "Provider check failed; will retry later",
+        season_year: lg.season_year,
+        from_week: lg.current_week,
+        to_week: next_week,
+        season_type,
+        provider_status: provider.status,
+        provider_error: provider.error,
+      });
+    }
+
+    if (!provider.hasGames) {
       return NextResponse.json({
         ok: true,
         league_id,
@@ -153,28 +186,66 @@ export async function POST(req: Request) {
     }
 
     // 1) Sync games for the new week (must succeed BEFORE advancing)
-    const syncGamesRes = await postJson(baseUrl, "/api/sync-games", {
+    const syncGames = await postJsonSafe(baseUrl, "/api/sync-games", {
       league_id,
       season_type,
       season_year: lg.season_year,
       week_number: next_week,
     });
 
-    // Require that sync-games actually found games
-    if (!syncGamesRes?.ok || (syncGamesRes?.upserted ?? 0) === 0) {
-      throw new Error(
-        `sync-games returned no games for week ${next_week} (season_type=${season_type})`
-      );
+    if (!syncGames.ok) {
+      // retry-later
+      return NextResponse.json({
+        ok: true,
+        league_id,
+        advanced: false,
+        reason: "sync-games failed; will retry later",
+        season_year: lg.season_year,
+        from_week: lg.current_week,
+        to_week: next_week,
+        sync_games_status: syncGames.status,
+        sync_games_body: syncGames.json ?? syncGames.text,
+      });
     }
 
-    // 2) Sync week config for the new week (will 409 if no games)
-    const syncWeekRes = await postJson(baseUrl, "/api/sync-week", {
+    const upserted = Number(syncGames.json?.upserted ?? 0);
+    if (upserted <= 0) {
+      // retry-later
+      return NextResponse.json({
+        ok: true,
+        league_id,
+        advanced: false,
+        reason: "sync-games returned 0 games; will retry later",
+        season_year: lg.season_year,
+        from_week: lg.current_week,
+        to_week: next_week,
+        sync_games: syncGames.json ?? syncGames.text,
+      });
+    }
+
+    // 2) Sync week config for the new week
+    const syncWeek = await postJsonSafe(baseUrl, "/api/sync-week", {
       league_id,
       season_year: lg.season_year,
       week_number: next_week,
     });
 
-    // 3) Only now advance league week
+    if (!syncWeek.ok) {
+      // retry-later (often 409 if games aren't visible yet)
+      return NextResponse.json({
+        ok: true,
+        league_id,
+        advanced: false,
+        reason: "sync-week failed; will retry later",
+        season_year: lg.season_year,
+        from_week: lg.current_week,
+        to_week: next_week,
+        sync_week_status: syncWeek.status,
+        sync_week_body: syncWeek.json ?? syncWeek.text,
+      });
+    }
+
+    // 3) Only now advance league week (this prevents broken state)
     const { error: updErr } = await supabaseAdmin
       .from("leagues")
       .update({ current_week: next_week })
@@ -191,8 +262,8 @@ export async function POST(req: Request) {
       season_type,
       from_week: lg.current_week,
       to_week: next_week,
-      sync_games: syncGamesRes,
-      sync_week: syncWeekRes,
+      sync_games: syncGames.json ?? syncGames.text,
+      sync_week: syncWeek.json ?? syncWeek.text,
     });
   } catch (e: any) {
     console.error("advance-week error:", e);
