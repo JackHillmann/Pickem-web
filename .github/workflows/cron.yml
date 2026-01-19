@@ -1,5 +1,9 @@
 name: Pickem Scheduler
 
+concurrency:
+  group: pickem-scheduler
+  cancel-in-progress: false
+
 on:
   schedule:
     - cron: "*/5 * * * *" # every 5 min: sync games + grade
@@ -25,7 +29,8 @@ jobs:
           (github.event_name == 'workflow_dispatch')
         run: |
           echo "==> Syncing NFL games"
-          curl -fsS -X POST "${{ secrets.APP_URL }}/api/sync-games" \
+          curl -fsS --retry 5 --retry-delay 5 --retry-all-errors --max-time 30 \
+            -X POST "${{ secrets.APP_URL }}/api/sync-games" \
             -H "content-type: application/json" \
             -H "x-cron-secret: ${{ secrets.CRON_SECRET }}" \
             -d '{"season_type":3, "league_id":"${{ secrets.LEAGUE_ID }}"}'
@@ -36,7 +41,8 @@ jobs:
           (github.event_name == 'workflow_dispatch')
         run: |
           echo "==> Grading picks"
-          curl -fsS -X POST "${{ secrets.APP_URL }}/api/grade-week" \
+          curl -fsS --retry 5 --retry-delay 5 --retry-all-errors --max-time 30 \
+            -X POST "${{ secrets.APP_URL }}/api/grade-week" \
             -H "content-type: application/json" \
             -H "x-cron-secret: ${{ secrets.CRON_SECRET }}" \
             -d '{"league_id":"${{ secrets.LEAGUE_ID }}"}'
@@ -48,7 +54,8 @@ jobs:
         if: github.event_name == 'schedule' && github.event.schedule == '7 * * * *'
         run: |
           echo "==> Checking if we should advance to next week"
-          curl -fsS -X POST "${{ secrets.APP_URL }}/api/advance-week" \
+          curl -fsS --retry 5 --retry-delay 5 --retry-all-errors --max-time 30 \
+            -X POST "${{ secrets.APP_URL }}/api/advance-week" \
             -H "content-type: application/json" \
             -H "x-cron-secret: ${{ secrets.CRON_SECRET }}" \
             -d '{"league_id":"${{ secrets.LEAGUE_ID }}","season_type":3}'
@@ -62,7 +69,8 @@ jobs:
           (github.event_name == 'workflow_dispatch' && inputs.run_sync_week == 'true')
         run: |
           echo "==> Syncing week config"
-          curl -fsS -X POST "${{ secrets.APP_URL }}/api/sync-week" \
+          curl -fsS --retry 5 --retry-delay 5 --retry-all-errors --max-time 30 \
+            -X POST "${{ secrets.APP_URL }}/api/sync-week" \
             -H "content-type: application/json" \
             -H "x-cron-secret: ${{ secrets.CRON_SECRET }}" \
             -d '{"league_id":"${{ secrets.LEAGUE_ID }}"}'

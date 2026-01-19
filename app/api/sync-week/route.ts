@@ -48,7 +48,7 @@ export async function POST(req: Request) {
     // Keep your existing rule (adjust if playoffs differ)
     const picks_required = week_number >= 17 ? 1 : 2;
 
-    // Find earliest kickoff for THIS league/week
+    // Earliest kickoff for THIS league/week
     const { data: games, error: gamesErr } = await supabaseAdmin
       .from("games")
       .select("kickoff_time")

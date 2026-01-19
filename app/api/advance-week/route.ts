@@ -167,7 +167,7 @@ export async function POST(req: Request) {
       );
     }
 
-    // 2) Sync week config for the new week (will 409 if no games now)
+    // 2) Sync week config for the new week (will 409 if no games)
     const syncWeekRes = await postJson(baseUrl, "/api/sync-week", {
       league_id,
       season_year: lg.season_year,
