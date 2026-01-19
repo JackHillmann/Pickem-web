@@ -42,10 +42,13 @@ export async function POST(req: Request) {
     const season_year = Number(body.season_year ?? ctx.season_year);
     const week_number = Number(body.week_number ?? ctx.week_number);
 
-    // Keep your existing rule
+    // Only allow the old "+24h fallback" behavior if explicitly requested
+    const allow_fallback_lock = Boolean(body.allow_fallback_lock ?? false);
+
+    // Keep your existing rule (adjust if playoffs differ)
     const picks_required = week_number >= 17 ? 1 : 2;
 
-    // Earliest kickoff for THIS league/week
+    // Find earliest kickoff for THIS league/week
     const { data: games, error: gamesErr } = await supabaseAdmin
       .from("games")
       .select("kickoff_time")
@@ -57,9 +60,23 @@ export async function POST(req: Request) {
 
     if (gamesErr) throw gamesErr;
 
+    // If no games exist, refuse to create config unless fallback is allowed
+    if (!games?.length && !allow_fallback_lock) {
+      return NextResponse.json(
+        {
+          error:
+            "No games found for league/week; refusing to create week config. Run sync-games first, or pass allow_fallback_lock:true if you really want a fallback.",
+          league_id: ctx.league_id,
+          season_year,
+          week_number,
+        },
+        { status: 409 }
+      );
+    }
+
     const lockIso = games?.[0]?.kickoff_time
       ? new Date(games[0].kickoff_time).toISOString()
-      : new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(); // +24h fallback
+      : new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(); // fallback only if allowed
 
     const revealIso = lockIso;
 
@@ -87,7 +104,7 @@ export async function POST(req: Request) {
       reveal_time: revealIso,
       note: games?.length
         ? "lock set from games table"
-        : "no games found; used fallback lock time",
+        : "no games found; used fallback lock time (allow_fallback_lock=true)",
     });
   } catch (e: any) {
     console.error("sync-week error:", e);

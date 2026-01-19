@@ -152,15 +152,7 @@ export async function POST(req: Request) {
       });
     }
 
-    // Advance league week
-    const { error: updErr } = await supabaseAdmin
-      .from("leagues")
-      .update({ current_week: next_week })
-      .eq("id", league_id);
-
-    if (updErr) throw updErr;
-
-    // Sync games for the new week (must include league_id; season_type for playoffs)
+    // 1) Sync games for the new week (must succeed BEFORE advancing)
     const syncGamesRes = await postJson(baseUrl, "/api/sync-games", {
       league_id,
       season_type,
@@ -168,12 +160,27 @@ export async function POST(req: Request) {
       week_number: next_week,
     });
 
-    // Sync week config for the new week (must include league_id)
+    // Require that sync-games actually found games
+    if (!syncGamesRes?.ok || (syncGamesRes?.upserted ?? 0) === 0) {
+      throw new Error(
+        `sync-games returned no games for week ${next_week} (season_type=${season_type})`
+      );
+    }
+
+    // 2) Sync week config for the new week (will 409 if no games now)
     const syncWeekRes = await postJson(baseUrl, "/api/sync-week", {
       league_id,
       season_year: lg.season_year,
       week_number: next_week,
     });
+
+    // 3) Only now advance league week
+    const { error: updErr } = await supabaseAdmin
+      .from("leagues")
+      .update({ current_week: next_week })
+      .eq("id", league_id);
+
+    if (updErr) throw updErr;
 
     return NextResponse.json({
       ok: true,
