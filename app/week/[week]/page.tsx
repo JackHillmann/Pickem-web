@@ -68,7 +68,7 @@ export default function WeekPage() {
 
   useEffect(() => {
     if (loading) return;
-    if (!Number.isFinite(weekNumber) || weekNumber < 1 || weekNumber > 18) {
+    if (!Number.isFinite(weekNumber) || weekNumber < 1 || weekNumber > 104) {
       setErr("Invalid week number.");
       setBusy(false);
       return;
@@ -174,7 +174,10 @@ export default function WeekPage() {
 </div>
 
       <h1 className="text-xl font-semibold">
-        {league?.name} • Week {weekNumber}
+        {league?.name} •{" "}
+        {weekNumber >= 101
+          ? `Preseason Week ${weekNumber - 100}`
+          : `Week ${weekNumber}`}
       </h1>
 
       {weekCfg && (

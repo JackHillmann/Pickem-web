@@ -113,9 +113,13 @@ export default function MatchupsPage() {
   }, [league, week]);
 
   const weekOptions = useMemo(() => {
-    // Regular season weeks
-    return Array.from({ length: 18 }, (_, i) => i + 1);
+    // Regular season weeks 1-18, plus synthetic preseason-test weeks 101-104
+    return [...Array.from({ length: 18 }, (_, i) => i + 1), 101, 102, 103, 104];
   }, []);
+
+  function weekLabel(w: number) {
+    return w >= 101 ? `Preseason Week ${w - 100}` : `Week ${w}`;
+  }
 
   if (loading) return null;
 
@@ -154,7 +158,7 @@ export default function MatchupsPage() {
           >
             {weekOptions.map((w) => (
               <option key={w} value={w}>
-                Week {w}
+                {weekLabel(w)}
               </option>
             ))}
           </select>

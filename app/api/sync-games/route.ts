@@ -47,15 +47,16 @@ export async function POST(req: Request) {
     const ctx = await getLeagueContextById(league_id);
 
     const season_year = Number(body.season_year ?? ctx.season_year);
-    const week_number = Number(body.week_number ?? ctx.week_number);
-    const season_type = Number(body.season_type ?? 2); // 2=regular, 3=postseason
+    const week_number = Number(body.week_number ?? ctx.week_number); // storage key (can be a synthetic value, e.g. 101-104 for preseason)
+    const espn_week = Number(body.espn_week ?? week_number); // actual week param sent to ESPN
+    const season_type = Number(body.season_type ?? 2); // 1=preseason, 2=regular, 3=postseason
     const provider = String(body.provider ?? "espn");
 
     const url = new URL(
       "https://site.api.espn.com/apis/site/v2/sports/football/nfl/scoreboard"
     );
     url.searchParams.set("seasontype", String(season_type));
-    url.searchParams.set("week", String(week_number));
+    url.searchParams.set("week", String(espn_week));
     url.searchParams.set("dates", String(season_year));
 
     const r = await fetch(url.toString(), {

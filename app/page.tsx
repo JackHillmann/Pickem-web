@@ -96,9 +96,7 @@ export default function HomePage() {
               </button>
 
               <button
-                className="border-gray-400
-
-text-gray-900"
+                className="w-full rounded-xl border border-gray-400 px-4 py-3 text-gray-900 dark:border-zinc-600 dark:text-zinc-50"
                 onClick={() => router.push("/join")}
               >
                 Join a league

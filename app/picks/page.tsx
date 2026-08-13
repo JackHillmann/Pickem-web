@@ -504,7 +504,10 @@ export default function PicksPage() {
         <div>
           <h1 className="text-xl font-semibold">{league?.name}</h1>
           <p className="text-sm text-gray-600">
-            Week {league?.current_week} • Season {league?.season_year}
+            {league && league.current_week >= 101
+              ? `Preseason Week ${league.current_week - 100}`
+              : `Week ${league?.current_week}`}{" "}
+            • Season {league?.season_year}
           </p>
           {weekCfg && (
             <p className="mt-1 text-xs text-gray-500">
