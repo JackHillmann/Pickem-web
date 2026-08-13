@@ -8,14 +8,12 @@ function mustBeCron(req: Request) {
   if (!isVercelCron && !hasSecret) throw new Error("Unauthorized");
 }
 
-// Ordered most-lenient to most-urgent. Checked independently each run so a
-// cron gap that skips straight past multiple thresholds still catches up
-// safely rather than silently dropping a reminder.
-const TIERS: { tier: string; hours: number }[] = [
-  { tier: "3h", hours: 3 },
-  { tier: "1h", hours: 1 },
-  { tier: "30m", hours: 0.5 },
-];
+// Single reminder tier: fires once, the first time a cron run observes
+// less than an hour remaining until lock, for anyone who still hasn't
+// submitted. The reminder_log unique constraint guarantees it never
+// fires twice for the same person/week even though cron checks every
+// 5 minutes.
+const TIERS: { tier: string; hours: number }[] = [{ tier: "1h", hours: 1 }];
 
 async function getLeagueContextById(league_id: string) {
   const { data, error } = await supabaseAdmin
