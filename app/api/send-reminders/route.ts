@@ -12,8 +12,8 @@ function mustBeCron(req: Request) {
 // cron gap that skips straight past multiple thresholds still catches up
 // safely rather than silently dropping a reminder.
 const TIERS: { tier: string; hours: number }[] = [
-  { tier: "24h", hours: 24 },
   { tier: "3h", hours: 3 },
+  { tier: "1h", hours: 1 },
   { tier: "30m", hours: 0.5 },
 ];
 
