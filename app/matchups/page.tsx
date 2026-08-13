@@ -45,11 +45,12 @@ export default function MatchupsPage() {
 
   const [league, setLeague] = useState<League | null>(null);
   const [week, setWeek] = useState<number>(1);
+  const [seasonType, setSeasonType] = useState<number>(2);
   const [games, setGames] = useState<GameRow[]>([]);
   const [busy, setBusy] = useState(true);
   const [err, setErr] = useState<string | null>(null);
 
-  // Load league once, set default week to current_week
+  // Load league once, set default week/season type to whatever's current
   useEffect(() => {
     if (loading) return;
 
@@ -76,19 +77,19 @@ export default function MatchupsPage() {
       const lg = leagues[0] as League;
       setLeague(lg);
       setWeek(lg.current_week);
+      setSeasonType(lg.current_season_type);
       setBusy(false);
     }
 
     loadLeague();
   }, [loading, router]);
 
-  // Load games whenever week changes
+  // Load games whenever week or season type changes
   useEffect(() => {
     if (!league) return;
 
     const leagueId = league.id;
     const seasonYear = league.season_year;
-    const seasonType = league.current_season_type;
 
     async function loadGames() {
       setErr(null);
@@ -117,12 +118,24 @@ export default function MatchupsPage() {
     }
 
     loadGames();
-  }, [league, week]);
+  }, [league, week, seasonType]);
+
+  const seasonTypeOptions = [
+    { value: 1, label: "Preseason" },
+    { value: 2, label: "Regular Season" },
+    { value: 3, label: "Postseason" },
+  ];
 
   const weekOptions = useMemo(() => {
-    // Regular season weeks
-    return Array.from({ length: 18 }, (_, i) => i + 1);
-  }, []);
+    const count = seasonType === 2 ? 18 : seasonType === 1 ? 4 : 5;
+    return Array.from({ length: count }, (_, i) => i + 1);
+  }, [seasonType]);
+
+  // Keep the selected week valid when season type changes and shrinks the range
+  useEffect(() => {
+    const maxWeek = seasonType === 2 ? 18 : seasonType === 1 ? 4 : 5;
+    if (week > maxWeek) setWeek(1);
+  }, [seasonType, week]);
 
   if (loading) return <LoadingSpinner />;
 
@@ -146,12 +159,26 @@ export default function MatchupsPage() {
 
       <section className="mt-4 rounded border p-4">
         <div className="flex items-center justify-between gap-3">
-          <div>
-            <h2 className="text-base font-semibold">Week</h2>
-            <p className="mt-1 text-xs text-gray-500">
-              Shows games from the <code>games</code> table.
-            </p>
-          </div>
+          <h2 className="text-base font-semibold">Schedule</h2>
+
+          <select
+            className="rounded border p-2 text-sm"
+            value={seasonType}
+            onChange={(e) => setSeasonType(Number(e.target.value))}
+            disabled={!league}
+          >
+            {seasonTypeOptions.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="mt-3 flex items-center justify-between gap-3">
+          <p className="text-xs text-gray-500">
+            Shows games from the <code>games</code> table.
+          </p>
 
           <select
             className="rounded border p-2 text-sm"
