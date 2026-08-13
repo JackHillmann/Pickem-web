@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/src/lib/supabaseClient";
 import { useRequireAuth } from "@/src/lib/useRequireAuth";
 import { useRouter } from "next/navigation";
+import { TeamSelect } from "@/src/components/TeamSelect";
+import { TeamLogo } from "@/src/components/TeamLogo";
 
 type League = {
   id: string;
@@ -642,49 +644,33 @@ export default function PicksPage() {
           <div className="mt-4 space-y-4">
             <div>
               <label className="mb-1 block text-sm font-medium">Pick 1</label>
-              <select
-                className="w-full rounded border p-3"
+              <TeamSelect
                 value={picks[1]}
+                options={optionsFor(1)}
                 disabled={locked || wantsBye}
-                onChange={(e) => setPicks((p) => ({ ...p, 1: e.target.value }))}
-              >
-                <option value="">
-                  {wantsBye
+                placeholder={
+                  wantsBye
                     ? "Bye selected - Click `Save Picks to Confirm`"
-                    : "Select a team"}
-                </option>
-                {!wantsBye &&
-                  optionsFor(1).map((t) => (
-                    <option key={t} value={t}>
-                      {t}
-                    </option>
-                  ))}
-              </select>
+                    : "Select a team"
+                }
+                onChange={(abbr) => setPicks((p) => ({ ...p, 1: abbr }))}
+              />
             </div>
 
             {weekCfg.picks_required === 2 && (
               <div>
                 <label className="mb-1 block text-sm font-medium">Pick 2</label>
-                <select
-                  className="w-full rounded border p-3"
+                <TeamSelect
                   value={picks[2]}
+                  options={optionsFor(2)}
                   disabled={locked || wantsBye}
-                  onChange={(e) =>
-                    setPicks((p) => ({ ...p, 2: e.target.value }))
-                  }
-                >
-                  <option value="">
-                    {wantsBye
+                  placeholder={
+                    wantsBye
                       ? "Bye selected - Click `Save Picks to Confirm`"
-                      : "Select a team"}
-                  </option>
-                  {!wantsBye &&
-                    optionsFor(2).map((t) => (
-                      <option key={t} value={t}>
-                        {t}
-                      </option>
-                    ))}
-                </select>
+                      : "Select a team"
+                  }
+                  onChange={(abbr) => setPicks((p) => ({ ...p, 2: abbr }))}
+                />
               </div>
             )}
 
@@ -755,10 +741,10 @@ export default function PicksPage() {
 
               const cls =
                 res === "win"
-                  ? "rounded border border-emerald-300 bg-emerald-50 px-2 py-1 text-xs text-emerald-800"
+                  ? "flex items-center gap-1.5 rounded border border-emerald-300 bg-emerald-50 px-2 py-1 text-xs text-emerald-800"
                   : res === "loss"
-                  ? "rounded border border-red-300 bg-red-50 px-2 py-1 text-xs text-red-800"
-                  : "rounded border px-2 py-1 text-xs text-gray-700";
+                  ? "flex items-center gap-1.5 rounded border border-red-300 bg-red-50 px-2 py-1 text-xs text-red-800"
+                  : "flex items-center gap-1.5 rounded border px-2 py-1 text-xs text-gray-700";
 
               return (
                 <span
@@ -766,6 +752,7 @@ export default function PicksPage() {
                   className={cls}
                   title={`Week ${r.week_number} • ${res}`}
                 >
+                  <TeamLogo abbr={r.team_abbr} size={14} />
                   W{r.week_number} {r.team_abbr}
                 </span>
               );

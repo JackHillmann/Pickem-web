@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/src/lib/supabaseClient";
 import { useRequireAuth } from "@/src/lib/useRequireAuth";
 import { useRouter } from "next/navigation";
+import { TeamLogo } from "@/src/components/TeamLogo";
 
 type League = {
   id: string;
@@ -186,8 +187,12 @@ export default function MatchupsPage() {
               return (
                 <div key={g.game_id} className="rounded border p-3">
                   <div className="flex items-center justify-between">
-                    <div className="text-sm font-semibold">
-                      {g.away_abbr} @ {g.home_abbr}
+                    <div className="flex items-center gap-2 text-sm font-semibold">
+                      <TeamLogo abbr={g.away_abbr} />
+                      <span>{g.away_abbr}</span>
+                      <span className="text-gray-400">@</span>
+                      <TeamLogo abbr={g.home_abbr} />
+                      <span>{g.home_abbr}</span>
                     </div>
 
                     {isFinal ? (
@@ -210,18 +215,21 @@ export default function MatchupsPage() {
                   </div>
 
                   {(g.home_score != null || g.away_score != null) && (
-                    <div className="mt-2 text-sm">
+                    <div className="mt-2 flex items-center gap-1.5 text-sm">
+                      <TeamLogo abbr={g.away_abbr} size={16} />
                       <span className="font-medium">{g.away_abbr}</span>{" "}
                       {g.away_score ?? "-"}{" "}
                       <span className="text-gray-400">—</span>{" "}
+                      <TeamLogo abbr={g.home_abbr} size={16} />
                       <span className="font-medium">{g.home_abbr}</span>{" "}
                       {g.home_score ?? "-"}
                     </div>
                   )}
 
                   {g.winner_abbr && (
-                    <div className="mt-1 text-xs text-gray-600">
+                    <div className="mt-1 flex items-center gap-1.5 text-xs text-gray-600">
                       Winner:{" "}
+                      <TeamLogo abbr={g.winner_abbr} size={14} />
                       <span className="font-semibold">{g.winner_abbr}</span>
                     </div>
                   )}

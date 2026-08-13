@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { supabase } from "@/src/lib/supabaseClient";
 import { useRequireAuth } from "@/src/lib/useRequireAuth";
 import { useRouter } from "next/navigation";
+import { TeamLogo } from "@/src/components/TeamLogo";
 
 
 type League = {
@@ -223,22 +224,27 @@ export default function WeekPage() {
               const p1 = picked?.[1];
               const p2 = weekCfg.picks_required === 2 ? picked?.[2] : undefined;
 
+              function teamPill(abbr: string | undefined) {
+                if (!abbr) {
+                  return (
+                    <span className="text-gray-500 font-normal">No picks</span>
+                  );
+                }
+                return (
+                  <span className="inline-flex items-center gap-1.5 font-semibold">
+                    <TeamLogo abbr={abbr} size={16} />
+                    {abbr}
+                  </span>
+                );
+              }
+
               const right =
                 weekCfg.picks_required === 1 ? (
-                  p1 ? (
-                    <span className="font-semibold">{p1}</span>
-                  ) : (
-                    <span className="text-gray-500">No picks</span>
-                  )
+                  teamPill(p1)
                 ) : (
-                  <span className="font-semibold">
-                    {p1 ?? <span className="text-gray-500 font-normal">No picks</span>}
-                    {"  "}
-                    {p2 ? (
-                      <span className="ml-2">{p2}</span>
-                    ) : (
-                      <span className="ml-2 text-gray-500 font-normal">No picks</span>
-                    )}
+                  <span className="flex items-center gap-3">
+                    {teamPill(p1)}
+                    {teamPill(p2)}
                   </span>
                 );
 
