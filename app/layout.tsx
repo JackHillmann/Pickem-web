@@ -29,7 +29,10 @@ export default function RootLayout({
       >
         {children}
         <footer className="mx-auto max-w-lg px-4 py-6 text-center text-xs text-gray-500 dark:text-zinc-500">
-          <p>&copy; {new Date().getFullYear()} Pick&apos;em League. All rights reserved.</p>
+          <p>
+            &copy; {new Date().getFullYear()} Pick&apos;em League. All rights
+            reserved. &middot; Site by JH Design
+          </p>
           <p className="mt-1">
             Not affiliated with the NFL or any NFL team. Team names and logos
             are property of their respective owners.
