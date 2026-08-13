@@ -106,12 +106,14 @@ export default function StandingsPage() {
       }
       setMembers((memRows ?? []) as any);
 
-      // results (season totals)
+      // results (season totals) — always the real regular season, so
+      // preseason test results never show up in standings
       const { data: resRows, error: resErr } = await supabase
         .from("pick_results")
         .select("user_id,result")
         .eq("league_id", lg.id)
-        .eq("season_year", lg.season_year);
+        .eq("season_year", lg.season_year)
+        .eq("season_type", 2);
 
       if (resErr) {
         setErr(resErr.message);

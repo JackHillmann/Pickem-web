@@ -10,6 +10,7 @@ type League = {
   name: string;
   season_year: number;
   current_week: number;
+  current_season_type: number;
   timezone: string;
 };
 
@@ -56,7 +57,7 @@ export default function MatchupsPage() {
 
       const { data: leagues, error } = await supabase
         .from("leagues")
-        .select("id,name,season_year,current_week,timezone")
+        .select("id,name,season_year,current_week,current_season_type,timezone")
         .limit(1);
 
       if (error) {
@@ -83,7 +84,9 @@ export default function MatchupsPage() {
   useEffect(() => {
     if (!league) return;
 
+    const leagueId = league.id;
     const seasonYear = league.season_year;
+    const seasonType = league.current_season_type;
 
     async function loadGames() {
       setErr(null);
@@ -94,8 +97,10 @@ export default function MatchupsPage() {
         .select(
           "game_id,week_number,kickoff_time,status,home_abbr,away_abbr,home_score,away_score,winner_abbr"
         )
+        .eq("league_id", leagueId)
         .eq("season_year", seasonYear)
         .eq("week_number", week)
+        .eq("season_type", seasonType)
         .order("kickoff_time", { ascending: true });
 
       if (error) {

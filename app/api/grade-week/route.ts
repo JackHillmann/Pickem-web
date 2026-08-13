@@ -15,7 +15,7 @@ async function getLeagueContextFromBody(req: Request) {
 
   const { data, error } = await supabaseAdmin
     .from("leagues")
-    .select("id,season_year,current_week")
+    .select("id,season_year,current_week,current_season_type")
     .eq("id", league_id)
     .single();
 
@@ -26,6 +26,7 @@ async function getLeagueContextFromBody(req: Request) {
     league_id: data.id as string,
     season_year: data.season_year as number,
     week_number: data.current_week as number,
+    season_type: data.current_season_type as number,
   };
 }
 
@@ -33,7 +34,7 @@ export async function POST(req: Request) {
   try {
     mustBeCron(req);
 
-    const { league_id, season_year, week_number } =
+    const { league_id, season_year, week_number, season_type } =
       await getLeagueContextFromBody(req);
 
     // 1) Load all picks for this league/week
@@ -42,7 +43,8 @@ export async function POST(req: Request) {
       .select("user_id,slot,team_abbr")
       .eq("league_id", league_id)
       .eq("season_year", season_year)
-      .eq("week_number", week_number);
+      .eq("week_number", week_number)
+      .eq("season_type", season_type);
 
     if (picksErr) throw picksErr;
 
@@ -52,7 +54,8 @@ export async function POST(req: Request) {
       .select("status,winner_abbr")
       .eq("league_id", league_id)
       .eq("season_year", season_year)
-      .eq("week_number", week_number);
+      .eq("week_number", week_number)
+      .eq("season_type", season_type);
 
     if (gamesErr) throw gamesErr;
 
@@ -72,6 +75,7 @@ export async function POST(req: Request) {
         league_id,
         season_year,
         week_number,
+        season_type,
         user_id: p.user_id,
         slot: p.slot,
         team_abbr: p.team_abbr,
@@ -85,7 +89,8 @@ export async function POST(req: Request) {
       .delete()
       .eq("league_id", league_id)
       .eq("season_year", season_year)
-      .eq("week_number", week_number);
+      .eq("week_number", week_number)
+      .eq("season_type", season_type);
 
     if (delErr) throw delErr;
 
@@ -93,7 +98,7 @@ export async function POST(req: Request) {
       const { error: prErr } = await supabaseAdmin
         .from("pick_results")
         .upsert(results, {
-          onConflict: "league_id,season_year,week_number,user_id,slot",
+          onConflict: "league_id,season_year,season_type,week_number,user_id,slot",
         });
       if (prErr) throw prErr;
     }
@@ -103,6 +108,7 @@ export async function POST(req: Request) {
       league_id,
       season_year,
       week_number,
+      season_type,
       picksFound: allPicks?.length ?? 0,
       gamesFound: games?.length ?? 0,
       resultsWritten: results.length,

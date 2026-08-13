@@ -11,7 +11,7 @@ function mustBeCron(req: Request) {
 async function getLeagueContextById(league_id: string) {
   const { data, error } = await supabaseAdmin
     .from("leagues")
-    .select("id,season_year,current_week")
+    .select("id,season_year,current_week,current_season_type")
     .eq("id", league_id)
     .single();
 
@@ -22,6 +22,7 @@ async function getLeagueContextById(league_id: string) {
     league_id: data.id as string,
     season_year: data.season_year as number,
     week_number: data.current_week as number,
+    season_type: data.current_season_type as number,
   };
 }
 
@@ -41,20 +42,23 @@ export async function POST(req: Request) {
     // Optional overrides (handy for testing), otherwise uses league context
     const season_year = Number(body.season_year ?? ctx.season_year);
     const week_number = Number(body.week_number ?? ctx.week_number);
+    const season_type = Number(body.season_type ?? ctx.season_type ?? 2);
 
     // Only allow the old "+24h fallback" behavior if explicitly requested
     const allow_fallback_lock = Boolean(body.allow_fallback_lock ?? false);
 
-    // Keep your existing rule (adjust if playoffs differ)
-    const picks_required = week_number >= 17 ? 1 : 2;
+    // Keep your existing rule (adjust if playoffs differ); preseason weeks
+    // (season_type 1) always require 2 picks regardless of week number
+    const picks_required = season_type === 2 && week_number >= 17 ? 1 : 2;
 
-    // Earliest kickoff for THIS league/week
+    // Earliest kickoff for THIS league/week/season_type
     const { data: games, error: gamesErr } = await supabaseAdmin
       .from("games")
       .select("kickoff_time")
       .eq("league_id", ctx.league_id)
       .eq("season_year", season_year)
       .eq("week_number", week_number)
+      .eq("season_type", season_type)
       .order("kickoff_time", { ascending: true })
       .limit(1);
 
@@ -69,6 +73,7 @@ export async function POST(req: Request) {
           league_id: ctx.league_id,
           season_year,
           week_number,
+          season_type,
         },
         { status: 409 }
       );
@@ -85,11 +90,12 @@ export async function POST(req: Request) {
         league_id: ctx.league_id,
         season_year,
         week_number,
+        season_type,
         picks_required,
         lock_time: lockIso,
         reveal_time: revealIso,
       },
-      { onConflict: "league_id,season_year,week_number" }
+      { onConflict: "league_id,season_year,season_type,week_number" }
     );
 
     if (weekErr) throw weekErr;
@@ -99,6 +105,7 @@ export async function POST(req: Request) {
       league_id: ctx.league_id,
       season_year,
       week_number,
+      season_type,
       picks_required,
       lock_time: lockIso,
       reveal_time: revealIso,

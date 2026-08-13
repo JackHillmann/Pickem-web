@@ -11,6 +11,7 @@ type League = {
   id: string;
   name: string;
   season_year: number;
+  current_season_type: number;
 };
 
 type WeekCfg = {
@@ -81,7 +82,7 @@ export default function WeekPage() {
       // 1) League (pick the first league for now)
       const { data: leagues, error: leaguesErr } = await supabase
         .from("leagues")
-        .select("id,name,season_year")
+        .select("id,name,season_year,current_season_type")
         .limit(1);
 
       if (leaguesErr) {
@@ -105,6 +106,7 @@ export default function WeekPage() {
         .eq("league_id", lg.id)
         .eq("season_year", lg.season_year)
         .eq("week_number", weekNumber)
+        .eq("season_type", lg.current_season_type)
         .limit(1);
 
       if (weekErr) {
@@ -144,6 +146,7 @@ export default function WeekPage() {
         .eq("league_id", lg.id)
         .eq("season_year", lg.season_year)
         .eq("week_number", weekNumber)
+        .eq("season_type", lg.current_season_type)
         .order("user_id", { ascending: true })
         .order("slot", { ascending: true });
 
@@ -175,7 +178,11 @@ export default function WeekPage() {
 
       <h1 className="text-xl font-semibold">
         {league?.name} • Week {weekNumber}
-        {league && league.season_year !== 2026 ? " (preseason test)" : ""}
+        {league && league.current_season_type === 1
+          ? " (preseason test)"
+          : league && league.current_season_type === 3
+          ? " (postseason)"
+          : ""}
       </h1>
 
       {weekCfg && (

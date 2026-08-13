@@ -11,7 +11,7 @@ function mustBeCron(req: Request) {
 async function getLeagueById(league_id: string) {
   const { data, error } = await supabaseAdmin
     .from("leagues")
-    .select("id,name,season_year,current_week")
+    .select("id,name,season_year,current_week,current_season_type")
     .eq("id", league_id)
     .single();
 
@@ -23,6 +23,7 @@ async function getLeagueById(league_id: string) {
     name: string;
     season_year: number;
     current_week: number;
+    current_season_type: number;
   };
 }
 
@@ -121,6 +122,7 @@ async function syncGamesInline(args: {
       league_id: args.league_id,
       season_year: args.season_year,
       week_number: args.week_number,
+      season_type: args.season_type,
       provider,
       game_id: String(ev.id),
       home_abbr,
@@ -154,9 +156,11 @@ async function syncWeekInline(args: {
   league_id: string;
   season_year: number;
   week_number: number;
+  season_type: number;
 }) {
-  // picks_required rule as you had it
-  const picks_required = args.week_number >= 17 ? 1 : 2;
+  // picks_required rule as you had it; preseason weeks always require 2 picks
+  const picks_required =
+    args.season_type === 2 && args.week_number >= 17 ? 1 : 2;
 
   const { data: games, error: gamesErr } = await supabaseAdmin
     .from("games")
@@ -164,6 +168,7 @@ async function syncWeekInline(args: {
     .eq("league_id", args.league_id)
     .eq("season_year", args.season_year)
     .eq("week_number", args.week_number)
+    .eq("season_type", args.season_type)
     .order("kickoff_time", { ascending: true })
     .limit(1);
 
@@ -184,11 +189,12 @@ async function syncWeekInline(args: {
       league_id: args.league_id,
       season_year: args.season_year,
       week_number: args.week_number,
+      season_type: args.season_type,
       picks_required,
       lock_time: lockIso,
       reveal_time: revealIso,
     },
-    { onConflict: "league_id,season_year,week_number" }
+    { onConflict: "league_id,season_year,season_type,week_number" }
   );
 
   if (weekErr) throw weekErr;
@@ -211,8 +217,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Missing league_id" }, { status: 400 });
     }
 
-    const season_type = Number(body.season_type ?? 2);
     const lg = await getLeagueById(league_id);
+    const season_type = Number(body.season_type ?? lg.current_season_type ?? 2);
 
     if (lg.current_week >= 18) {
       return NextResponse.json({
@@ -231,7 +237,8 @@ export async function POST(req: Request) {
       .select("status")
       .eq("league_id", league_id)
       .eq("season_year", lg.season_year)
-      .eq("week_number", lg.current_week);
+      .eq("week_number", lg.current_week)
+      .eq("season_type", season_type);
 
     if (curGamesErr) throw curGamesErr;
 
@@ -318,6 +325,7 @@ export async function POST(req: Request) {
       league_id,
       season_year: lg.season_year,
       week_number: next_week,
+      season_type,
     });
 
     if (!sw.ok) {
@@ -337,7 +345,7 @@ export async function POST(req: Request) {
     // 3) Advance league week
     const { error: updErr } = await supabaseAdmin
       .from("leagues")
-      .update({ current_week: next_week })
+      .update({ current_week: next_week, current_season_type: season_type })
       .eq("id", league_id);
 
     if (updErr) throw updErr;

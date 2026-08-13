@@ -10,6 +10,7 @@ type League = {
   name: string;
   season_year: number;
   current_week: number;
+  current_season_type: number;
   timezone: string;
 };
 
@@ -141,7 +142,7 @@ export default function PicksPage() {
       // 1) Load league (first league for now)
       const { data: leagues, error: leaguesErr } = await supabase
         .from("leagues")
-        .select("id,name,season_year,current_week,timezone")
+        .select("id,name,season_year,current_week,current_season_type,timezone")
         .limit(1);
 
       if (leaguesErr) {
@@ -164,6 +165,7 @@ export default function PicksPage() {
         .eq("league_id", lg.id)
         .eq("season_year", lg.season_year)
         .eq("week_number", lg.current_week)
+        .eq("season_type", lg.current_season_type)
         .limit(1);
 
       if (weekErr) {
@@ -181,12 +183,14 @@ export default function PicksPage() {
 
       const wc = weekRows[0] as WeekCfg;
       setWeekCfg(wc);
-      // 3) Load NFL games for this week (GLOBAL games table)
+      // 3) Load NFL games for this week
       const { data: gameRows, error: gamesErr } = await supabase
         .from("games")
         .select("kickoff_time,home_abbr,away_abbr,status")
+        .eq("league_id", lg.id)
         .eq("season_year", lg.season_year)
         .eq("week_number", lg.current_week)
+        .eq("season_type", lg.current_season_type)
         .order("kickoff_time", { ascending: true });
 
       if (gamesErr) {
@@ -204,6 +208,7 @@ export default function PicksPage() {
         .eq("league_id", lg.id)
         .eq("season_year", lg.season_year)
         .eq("week_number", lg.current_week)
+        .eq("season_type", lg.current_season_type)
         .eq("user_id", userId!)
         .order("slot", { ascending: true });
 
@@ -220,11 +225,14 @@ export default function PicksPage() {
       setPicks(nextPicks);
 
       // 5) Load used teams this season (for UI filtering) + include week_number for display
+      // Always scoped to the real regular season (season_type 2) so preseason
+      // test picks never burn a team's eligibility for the real season.
       const { data: usedRows, error: usedErr } = await supabase
         .from("picks")
         .select("team_abbr,week_number")
         .eq("league_id", lg.id)
         .eq("season_year", lg.season_year)
+        .eq("season_type", 2)
         .eq("user_id", userId!);
 
       if (usedErr) {
@@ -239,6 +247,7 @@ export default function PicksPage() {
         .select("week_number,team_abbr,result")
         .eq("league_id", lg.id)
         .eq("season_year", lg.season_year)
+        .eq("season_type", 2)
         .eq("user_id", userId!);
 
       if (prErr) {
@@ -266,6 +275,7 @@ export default function PicksPage() {
         .eq("league_id", lg.id)
         .eq("season_year", lg.season_year)
         .eq("week_number", lg.current_week)
+        .eq("season_type", lg.current_season_type)
         .eq("user_id", userId!)
         .limit(1);
 
@@ -273,11 +283,14 @@ export default function PicksPage() {
       setByeExistsThisWeek(exists);
       setWantsBye(exists);
 
+      // Season-long "have you used your one bye" is scoped to the real
+      // regular season only, same reasoning as used-teams above.
       const { data: byeSeason } = await supabase
         .from("byes")
         .select("id")
         .eq("league_id", lg.id)
         .eq("season_year", lg.season_year)
+        .eq("season_type", 2)
         .eq("user_id", userId!)
         .limit(1);
 
@@ -307,12 +320,13 @@ export default function PicksPage() {
   async function refreshUsedTeams() {
     if (!league) return;
 
-    // used picks
+    // used picks (real regular season only, see load() for why)
     const { data: usedRows } = await supabase
       .from("picks")
       .select("team_abbr,week_number")
       .eq("league_id", league.id)
       .eq("season_year", league.season_year)
+      .eq("season_type", 2)
       .eq("user_id", userId!);
 
     const allUsed = (usedRows ?? []) as UsedPickRow[];
@@ -330,6 +344,7 @@ export default function PicksPage() {
       .select("week_number,team_abbr,result")
       .eq("league_id", league.id)
       .eq("season_year", league.season_year)
+      .eq("season_type", 2)
       .eq("user_id", userId!);
 
     const m = new Map<string, "win" | "loss" | "pending">();
@@ -359,6 +374,7 @@ export default function PicksPage() {
         league_id: league.id,
         season_year: league.season_year,
         week_number: league.current_week,
+        season_type: league.current_season_type,
         user_id: userId!,
       });
 
@@ -375,6 +391,7 @@ export default function PicksPage() {
         .eq("league_id", league.id)
         .eq("season_year", league.season_year)
         .eq("week_number", league.current_week)
+        .eq("season_type", league.current_season_type)
         .eq("user_id", userId!);
 
       if (delPicksErr) {
@@ -405,6 +422,7 @@ export default function PicksPage() {
         .eq("league_id", league.id)
         .eq("season_year", league.season_year)
         .eq("week_number", league.current_week)
+        .eq("season_type", league.current_season_type)
         .eq("user_id", userId!);
 
       if (delByeErr) {
@@ -414,12 +432,13 @@ export default function PicksPage() {
       }
       setByeExistsThisWeek(false);
 
-      // re-check whether bye is used elsewhere
+      // re-check whether bye is used elsewhere (real regular season only)
       const { data: byeSeason } = await supabase
         .from("byes")
         .select("id")
         .eq("league_id", league.id)
         .eq("season_year", league.season_year)
+        .eq("season_type", 2)
         .eq("user_id", userId!)
         .limit(1);
 
@@ -451,6 +470,7 @@ export default function PicksPage() {
         league_id: league.id,
         season_year: league.season_year,
         week_number: league.current_week,
+        season_type: league.current_season_type,
         user_id: userId!,
         slot: 1,
         team_abbr: slot1,
@@ -462,6 +482,7 @@ export default function PicksPage() {
         league_id: league.id,
         season_year: league.season_year,
         week_number: league.current_week,
+        season_type: league.current_season_type,
         user_id: userId!,
         slot: 2,
         team_abbr: slot2,
@@ -469,7 +490,7 @@ export default function PicksPage() {
     }
 
     const { error: upErr } = await supabase.from("picks").upsert(rows, {
-      onConflict: "league_id,season_year,week_number,user_id,slot",
+      onConflict: "league_id,season_year,season_type,week_number,user_id,slot",
     });
 
     if (upErr) {
@@ -486,6 +507,7 @@ export default function PicksPage() {
         .eq("league_id", league.id)
         .eq("season_year", league.season_year)
         .eq("week_number", league.current_week)
+        .eq("season_type", league.current_season_type)
         .eq("user_id", userId!)
         .eq("slot", 2);
     }
@@ -505,7 +527,11 @@ export default function PicksPage() {
           <h1 className="text-xl font-semibold">{league?.name}</h1>
           <p className="text-sm text-gray-600">
             Week {league?.current_week} • Season {league?.season_year}
-            {league && league.season_year !== 2026 ? " (preseason test)" : ""}
+            {league && league.current_season_type === 1
+              ? " (preseason test)"
+              : league && league.current_season_type === 3
+              ? " (postseason)"
+              : ""}
           </p>
           {weekCfg && (
             <p className="mt-1 text-xs text-gray-500">
