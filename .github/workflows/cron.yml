@@ -33,7 +33,7 @@ jobs:
             -X POST "${{ secrets.APP_URL }}/api/sync-games" \
             -H "content-type: application/json" \
             -H "x-cron-secret: ${{ secrets.CRON_SECRET }}" \
-            -d '{"season_type":3, "league_id":"${{ secrets.LEAGUE_ID }}"}'
+            -d '{"season_type":2, "league_id":"${{ secrets.LEAGUE_ID }}"}'
 
       - name: Grade week
         if: >
@@ -58,7 +58,7 @@ jobs:
             -X POST "${{ secrets.APP_URL }}/api/advance-week" \
             -H "content-type: application/json" \
             -H "x-cron-secret: ${{ secrets.CRON_SECRET }}" \
-            -d '{"league_id":"${{ secrets.LEAGUE_ID }}","season_type":3}' \
+            -d '{"league_id":"${{ secrets.LEAGUE_ID }}","season_type":2}' \
             -o /tmp/advance-week.json -w "%{http_code}")
           echo "HTTP $CODE"
           cat /tmp/advance-week.json
