@@ -110,16 +110,6 @@ export default function PicksPage() {
     return Array.from(s).sort((a, b) => a.localeCompare(b));
   }, [games]);
 
-  // team_abbr -> the team it's playing this week, so we can block picking
-  // both sides of the same matchup
-  const opponentOf = useMemo(() => {
-    const m = new Map<string, string>();
-    games.forEach((g) => {
-      m.set(g.home_abbr, g.away_abbr);
-      m.set(g.away_abbr, g.home_abbr);
-    });
-    return m;
-  }, [games]);
 
   const [resultByWeekTeam, setResultByWeekTeam] = useState<
     Map<string, "win" | "loss" | "pending">
@@ -324,12 +314,10 @@ export default function PicksPage() {
 
     const otherSlot = slot === 1 ? 2 : 1;
     const otherPick = picks[otherSlot];
-    const otherOpponent = otherPick ? opponentOf.get(otherPick) : undefined;
 
     return pool.filter((t) => {
       if (picks[slot] === t) return true; // allow current selection
       if (t === otherPick) return false; // no duplicate team across slots
-      if (otherOpponent && t === otherOpponent) return false; // can't pick both teams in the same matchup
       return !usedTeams.has(t); // block teams already used this season
     });
   }
@@ -497,11 +485,6 @@ export default function PicksPage() {
     if (required === 2 && slot1 === slot2) {
       setSaving(false);
       setErr("Pick 1 and Pick 2 must be different teams.");
-      return;
-    }
-    if (required === 2 && opponentOf.get(slot1) === slot2) {
-      setSaving(false);
-      setErr("Pick 1 and Pick 2 can't be playing each other.");
       return;
     }
     if (usedTeams.has(slot1) || (required === 2 && usedTeams.has(slot2))) {
