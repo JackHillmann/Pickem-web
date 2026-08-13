@@ -6,6 +6,7 @@ import { supabase } from "@/src/lib/supabaseClient";
 import { useRequireAuth } from "@/src/lib/useRequireAuth";
 import { useRouter } from "next/navigation";
 import { TeamLogo } from "@/src/components/TeamLogo";
+import { LoadingSpinner } from "@/src/components/LoadingSpinner";
 
 
 type League = {
@@ -164,7 +165,7 @@ export default function WeekPage() {
     load();
   }, [loading, userId, weekNumber]);
 
-  if (loading || busy) return null;
+  if (loading || busy) return <LoadingSpinner />;
 
   return (
     <main className="mx-auto max-w-lg p-4">

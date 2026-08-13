@@ -6,6 +6,7 @@ import { useRequireAuth } from "@/src/lib/useRequireAuth";
 import { useRouter } from "next/navigation";
 import { TeamSelect } from "@/src/components/TeamSelect";
 import { TeamLogo } from "@/src/components/TeamLogo";
+import { LoadingSpinner } from "@/src/components/LoadingSpinner";
 
 type League = {
   id: string;
@@ -520,7 +521,7 @@ export default function PicksPage() {
     setMsg("Saved.");
   }
 
-  if (loading || busy) return null;
+  if (loading || busy) return <LoadingSpinner />;
 
   return (
     <main className="mx-auto max-w-lg p-4">

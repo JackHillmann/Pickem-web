@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/src/lib/supabaseClient";
 import { useRequireAuth } from "@/src/lib/useRequireAuth";
 import { useRouter } from "next/navigation";
+import { LoadingSpinner } from "@/src/components/LoadingSpinner";
 
 
 type League = {
@@ -128,7 +129,7 @@ export default function StandingsPage() {
     load();
   }, [loading]);
 
-  if (loading || busy) return null;
+  if (loading || busy) return <LoadingSpinner />;
 
   return (
     <main className="mx-auto max-w-lg p-4">

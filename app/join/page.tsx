@@ -4,6 +4,7 @@ import { useState } from "react";
 import { supabase } from "@/src/lib/supabaseClient";
 import { useRequireAuth } from "@/src/lib/useRequireAuth";
 import { useRouter } from "next/navigation";
+import { LoadingSpinner } from "@/src/components/LoadingSpinner";
 
 export default function JoinPage() {
   const router = useRouter();
@@ -12,7 +13,7 @@ export default function JoinPage() {
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  if (loading) return null;
+  if (loading) return <LoadingSpinner />;
 
   async function onJoin(e: React.FormEvent) {
     e.preventDefault();

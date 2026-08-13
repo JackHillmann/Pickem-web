@@ -5,6 +5,7 @@ import { supabase } from "@/src/lib/supabaseClient";
 import { useRequireAuth } from "@/src/lib/useRequireAuth";
 import { useRouter } from "next/navigation";
 import { TeamLogo } from "@/src/components/TeamLogo";
+import { LoadingSpinner } from "@/src/components/LoadingSpinner";
 
 type League = {
   id: string;
@@ -123,7 +124,7 @@ export default function MatchupsPage() {
     return Array.from({ length: 18 }, (_, i) => i + 1);
   }, []);
 
-  if (loading) return null;
+  if (loading) return <LoadingSpinner />;
 
   return (
     <main className="mx-auto max-w-lg p-4">
