@@ -19,7 +19,9 @@ export default function JoinPage() {
     setErr(null);
     setBusy(true);
 
-    const { data, error } = await supabase.rpc("join_league", { p_invite_code: code.trim() });
+    const { data, error } = await supabase.rpc("join_league", {
+      p_invite_code: code.trim().toUpperCase(),
+    });
 
     setBusy(false);
     if (error) return setErr(error.message);
