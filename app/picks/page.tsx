@@ -271,7 +271,9 @@ export default function PicksPage() {
       setResultByWeekTeam(m);
 
       const used = new Set<string>();
-      (usedRows ?? []).forEach((r: any) => used.add(r.team_abbr));
+      (usedRows ?? [])
+        .filter((r: any) => r.week_number !== lg.current_week) // eligibility rule: this week's own picks aren't "used" yet
+        .forEach((r: any) => used.add(r.team_abbr));
       setUsedTeams(used);
 
       setUsedPickRows((usedRows ?? []) as UsedPickRow[]);
