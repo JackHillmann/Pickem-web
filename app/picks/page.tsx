@@ -322,6 +322,19 @@ export default function PicksPage() {
     );
   }
 
+  // Memoized so the array reference only changes when the actual option
+  // list changes -- not every second from the lock-countdown re-render,
+  // which otherwise made the TeamSelect dropdowns reset their scroll
+  // position once a second while open.
+  const pick1Options = useMemo(
+    () => optionsFor(1),
+    [teamsPlaying, usedTeams, picks[1], picks[2]]
+  );
+  const pick2Options = useMemo(
+    () => optionsFor(2),
+    [teamsPlaying, usedTeams, picks[1], picks[2]]
+  );
+
   async function refreshUsedTeams() {
     if (!league) return;
 
@@ -655,7 +668,7 @@ export default function PicksPage() {
               <label className="mb-1 block text-sm font-medium">Pick 1</label>
               <TeamSelect
                 value={picks[1]}
-                options={optionsFor(1)}
+                options={pick1Options}
                 disabled={locked || wantsBye}
                 placeholder={
                   wantsBye
@@ -671,7 +684,7 @@ export default function PicksPage() {
                 <label className="mb-1 block text-sm font-medium">Pick 2</label>
                 <TeamSelect
                   value={picks[2]}
-                  options={optionsFor(2)}
+                  options={pick2Options}
                   disabled={locked || wantsBye}
                   placeholder={
                     wantsBye
