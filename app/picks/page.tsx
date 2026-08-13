@@ -231,14 +231,16 @@ export default function PicksPage() {
       setPicks(nextPicks);
 
       // 5) Load used teams this season (for UI filtering) + include week_number for display
-      // Always scoped to the real regular season (season_type 2) so preseason
-      // test picks never burn a team's eligibility for the real season.
+      // Scoped to the currently-active season_type, so preseason and regular
+      // season each get their own independent "used teams" tracking -- a
+      // preseason pick never burns eligibility for the real season, but
+      // still fully enforces the rule within preseason itself.
       const { data: usedRows, error: usedErr } = await supabase
         .from("picks")
         .select("team_abbr,week_number")
         .eq("league_id", lg.id)
         .eq("season_year", lg.season_year)
-        .eq("season_type", 2)
+        .eq("season_type", lg.current_season_type)
         .eq("user_id", userId!);
 
       if (usedErr) {
@@ -253,7 +255,7 @@ export default function PicksPage() {
         .select("week_number,team_abbr,result")
         .eq("league_id", lg.id)
         .eq("season_year", lg.season_year)
-        .eq("season_type", 2)
+        .eq("season_type", lg.current_season_type)
         .eq("user_id", userId!);
 
       if (prErr) {
@@ -289,14 +291,14 @@ export default function PicksPage() {
       setByeExistsThisWeek(exists);
       setWantsBye(exists);
 
-      // Season-long "have you used your one bye" is scoped to the real
-      // regular season only, same reasoning as used-teams above.
+      // Season-long "have you used your one bye" is scoped to the currently-
+      // active season_type, same reasoning as used-teams above.
       const { data: byeSeason } = await supabase
         .from("byes")
         .select("id")
         .eq("league_id", lg.id)
         .eq("season_year", lg.season_year)
-        .eq("season_type", 2)
+        .eq("season_type", lg.current_season_type)
         .eq("user_id", userId!)
         .limit(1);
 
@@ -338,13 +340,13 @@ export default function PicksPage() {
   async function refreshUsedTeams() {
     if (!league) return;
 
-    // used picks (real regular season only, see load() for why)
+    // used picks (scoped to the currently-active season_type, see load() for why)
     const { data: usedRows } = await supabase
       .from("picks")
       .select("team_abbr,week_number")
       .eq("league_id", league.id)
       .eq("season_year", league.season_year)
-      .eq("season_type", 2)
+      .eq("season_type", league.current_season_type)
       .eq("user_id", userId!);
 
     const allUsed = (usedRows ?? []) as UsedPickRow[];
@@ -362,7 +364,7 @@ export default function PicksPage() {
       .select("week_number,team_abbr,result")
       .eq("league_id", league.id)
       .eq("season_year", league.season_year)
-      .eq("season_type", 2)
+      .eq("season_type", league.current_season_type)
       .eq("user_id", userId!);
 
     const m = new Map<string, "win" | "loss" | "pending">();
@@ -455,13 +457,13 @@ export default function PicksPage() {
       }
       setByeExistsThisWeek(false);
 
-      // re-check whether bye is used elsewhere (real regular season only)
+      // re-check whether bye is used elsewhere (scoped to current season_type)
       const { data: byeSeason } = await supabase
         .from("byes")
         .select("id")
         .eq("league_id", league.id)
         .eq("season_year", league.season_year)
-        .eq("season_type", 2)
+        .eq("season_type", league.current_season_type)
         .eq("user_id", userId!)
         .limit(1);
 

@@ -11,6 +11,7 @@ type League = {
   id: string;
   name: string;
   season_year: number;
+  current_season_type: number;
 };
 
 type Member = {
@@ -78,7 +79,7 @@ export default function StandingsPage() {
       // league
       const { data: leagues, error: leaguesErr } = await supabase
         .from("leagues")
-        .select("id,name,season_year")
+        .select("id,name,season_year,current_season_type")
         .limit(1);
 
       if (leaguesErr) {
@@ -107,14 +108,15 @@ export default function StandingsPage() {
       }
       setMembers((memRows ?? []) as any);
 
-      // results (season totals) — always the real regular season, so
-      // preseason test results never show up in standings
+      // results (season totals) — scoped to the currently-active season_type,
+      // so preseason gets its own standings during testing without ever
+      // mixing with real regular-season results
       const { data: resRows, error: resErr } = await supabase
         .from("pick_results")
         .select("user_id,result")
         .eq("league_id", lg.id)
         .eq("season_year", lg.season_year)
-        .eq("season_type", 2);
+        .eq("season_type", lg.current_season_type);
 
       if (resErr) {
         setErr(resErr.message);
@@ -147,7 +149,14 @@ className="text-sm text-gray-900 underline dark:text-zinc-100"
 
   <div /> {/* spacer */}
 </div>
-      <p className="mt-1 text-sm text-gray-600">Season {league?.season_year}</p>
+      <p className="mt-1 text-sm text-gray-600">
+        Season {league?.season_year}
+        {league && league.current_season_type === 1
+          ? " (preseason test)"
+          : league && league.current_season_type === 3
+          ? " (postseason)"
+          : ""}
+      </p>
 
       {err && (
         <div className="mt-4 rounded border border-red-300 bg-red-50 p-3 text-sm text-red-700">
