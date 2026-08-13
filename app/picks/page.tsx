@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { TeamSelect } from "@/src/components/TeamSelect";
 import { TeamLogo } from "@/src/components/TeamLogo";
 import { LoadingSpinner } from "@/src/components/LoadingSpinner";
+import { LockAnimation } from "@/src/components/LockAnimation";
 
 type League = {
   id: string;
@@ -93,6 +94,7 @@ export default function PicksPage() {
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
+  const [lockAnim, setLockAnim] = useState<string | null>(null);
   const [msToLock, setMsToLock] = useState<number | null>(null);
   const [games, setGames] = useState<GameRow[]>([]);
 
@@ -357,6 +359,11 @@ export default function PicksPage() {
     setResultByWeekTeam(m);
   }
 
+  function playLockAnim(label: string) {
+    setLockAnim(label);
+    setTimeout(() => setLockAnim(null), 1400);
+  }
+
   async function save() {
     if (!league || !weekCfg) return;
 
@@ -411,8 +418,8 @@ export default function PicksPage() {
 
       setSaving(false);
       setMsg("Saved (bye).");
+      playLockAnim("Bye locked in!");
 
-      setTimeout(() => {}, 2000);
       return;
     }
 
@@ -519,6 +526,7 @@ export default function PicksPage() {
 
     setSaving(false);
     setMsg("Saved.");
+    playLockAnim("Picks locked in!");
   }
 
   if (loading || busy) return <LoadingSpinner />;
@@ -760,6 +768,8 @@ export default function PicksPage() {
             })}
         </div>
       </section>
+
+      {lockAnim && <LockAnimation label={lockAnim} />}
     </main>
   );
 }
