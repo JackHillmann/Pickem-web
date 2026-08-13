@@ -46,8 +46,7 @@ export async function POST(req: Request) {
     const allow_fallback_lock = Boolean(body.allow_fallback_lock ?? false);
 
     // Keep your existing rule (adjust if playoffs differ)
-    // week_number >= 100 is a synthetic preseason-test week; treat it like a normal 2-pick week
-    const picks_required = week_number >= 17 && week_number < 100 ? 1 : 2;
+    const picks_required = week_number >= 17 ? 1 : 2;
 
     // Earliest kickoff for THIS league/week
     const { data: games, error: gamesErr } = await supabaseAdmin

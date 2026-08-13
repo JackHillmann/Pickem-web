@@ -156,8 +156,7 @@ async function syncWeekInline(args: {
   week_number: number;
 }) {
   // picks_required rule as you had it
-  // week_number >= 100 is a synthetic preseason-test week; treat it like a normal 2-pick week
-  const picks_required = args.week_number >= 17 && args.week_number < 100 ? 1 : 2;
+  const picks_required = args.week_number >= 17 ? 1 : 2;
 
   const { data: games, error: gamesErr } = await supabaseAdmin
     .from("games")
