@@ -94,6 +94,13 @@ export default function PicksPage() {
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
+
+  // Display name gate: block saving picks/bye until the player has set one
+  const [displayName, setDisplayName] = useState<string | null>(null);
+  const [showNameModal, setShowNameModal] = useState(false);
+  const [nameModalInput, setNameModalInput] = useState("");
+  const [nameModalErr, setNameModalErr] = useState<string | null>(null);
+  const [nameModalSaving, setNameModalSaving] = useState(false);
   const [lockAnim, setLockAnim] = useState<string | null>(null);
   const [msToLock, setMsToLock] = useState<number | null>(null);
   const [games, setGames] = useState<GameRow[]>([]);
@@ -163,6 +170,15 @@ export default function PicksPage() {
 
       const lg = leagues[0] as League;
       setLeague(lg);
+
+      // 1b) Load display name (used to gate saving picks until it's set)
+      const { data: memberRow } = await supabase
+        .from("league_members")
+        .select("display_name")
+        .eq("user_id", userId!)
+        .single();
+
+      setDisplayName(memberRow?.display_name ?? "");
 
       // 2) Load week config
       const { data: weekRows, error: weekErr } = await supabase
@@ -376,6 +392,36 @@ export default function PicksPage() {
     setResultByWeekTeam(m);
   }
 
+  async function saveNameAndContinue() {
+    const trimmed = nameModalInput.trim();
+    if (!trimmed) {
+      setNameModalErr("Enter a name.");
+      return;
+    }
+
+    setNameModalSaving(true);
+    setNameModalErr(null);
+
+    const { error } = await supabase
+      .from("league_members")
+      .update({ display_name: trimmed })
+      .eq("user_id", userId!);
+
+    setNameModalSaving(false);
+
+    if (error) {
+      setNameModalErr(error.message);
+      return;
+    }
+
+    setDisplayName(trimmed);
+    setShowNameModal(false);
+    setNameModalInput("");
+
+    // Now that the gate is cleared, complete whatever the player was doing
+    save();
+  }
+
   function playLockAnim(label: string) {
     setLockAnim(label);
     setTimeout(() => setLockAnim(null), 1400);
@@ -383,6 +429,12 @@ export default function PicksPage() {
 
   async function save() {
     if (!league || !weekCfg) return;
+
+    if (!displayName || !displayName.trim()) {
+      setNameModalErr(null);
+      setShowNameModal(true);
+      return;
+    }
 
     setErr(null);
     setMsg(null);
@@ -792,6 +844,50 @@ export default function PicksPage() {
       </section>
 
       {lockAnim && <LockAnimation label={lockAnim} />}
+
+      {showNameModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-sm rounded-xl bg-white p-5 dark:bg-zinc-900">
+            <h2 className="text-base font-semibold">Set your display name</h2>
+            <p className="mt-1 text-sm text-gray-600 dark:text-zinc-400">
+              Other players see this on standings and weekly picks. Set it
+              before saving.
+            </p>
+
+            <input
+              className="mt-3 w-full rounded border p-2"
+              placeholder="Ex: Curly Lambeau"
+              value={nameModalInput}
+              onChange={(e) => setNameModalInput(e.target.value)}
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === "Enter") saveNameAndContinue();
+              }}
+            />
+
+            {nameModalErr && (
+              <p className="mt-2 text-sm text-red-600">{nameModalErr}</p>
+            )}
+
+            <div className="mt-4 flex gap-2">
+              <button
+                className="flex-1 rounded border p-2 text-sm"
+                onClick={() => setShowNameModal(false)}
+                disabled={nameModalSaving}
+              >
+                Cancel
+              </button>
+              <button
+                className="flex-1 rounded bg-black p-2 text-sm text-white disabled:opacity-50"
+                onClick={saveNameAndContinue}
+                disabled={nameModalSaving}
+              >
+                {nameModalSaving ? "Saving..." : "Save & continue"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
