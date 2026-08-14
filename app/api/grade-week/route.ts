@@ -51,7 +51,7 @@ export async function POST(req: Request) {
     // 2) Load games for THIS league/week + compute winners
     const { data: games, error: gamesErr } = await supabaseAdmin
       .from("games")
-      .select("status,winner_abbr")
+      .select("status,home_abbr,away_abbr,winner_abbr")
       .eq("league_id", league_id)
       .eq("season_year", season_year)
       .eq("week_number", week_number)
@@ -59,17 +59,27 @@ export async function POST(req: Request) {
 
     if (gamesErr) throw gamesErr;
 
+    // Each pick is graded against its own game only — a team's game being
+    // final doesn't depend on any other game in the week having finished.
+    const finalTeams = new Set<string>();
     const winners = new Set<string>();
     let allFinal = true;
 
     for (const g of games ?? []) {
-      if (g.status !== "final") allFinal = false;
+      if (g.status !== "final") {
+        allFinal = false;
+        continue;
+      }
+      if (g.home_abbr) finalTeams.add(g.home_abbr);
+      if (g.away_abbr) finalTeams.add(g.away_abbr);
       if (g.winner_abbr) winners.add(g.winner_abbr);
     }
 
     const results = (allPicks ?? []).map((p: any) => {
       let result: "win" | "loss" | "pending" = "pending";
-      if (allFinal) result = winners.has(p.team_abbr) ? "win" : "loss";
+      if (finalTeams.has(p.team_abbr)) {
+        result = winners.has(p.team_abbr) ? "win" : "loss";
+      }
 
       return {
         league_id,
