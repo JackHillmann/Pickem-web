@@ -1,18 +1,23 @@
 name: Pickem Scheduler
 
+# Scheduling moved to cron-job.org (2026-08-14) — GitHub Actions' free-tier
+# `schedule:` trigger was silently dropping runs under load, causing gaps
+# of 60-100+ minutes on a nominal 5-minute schedule. This workflow is kept
+# around for manual/on-demand runs only.
+
 concurrency:
   group: pickem-scheduler
   cancel-in-progress: false
 
 on:
-  schedule:
-    - cron: "*/5 * * * *" # every 5 min: sync games + grade
-    - cron: "0 16 * * *" # daily: sync-week
-    - cron: "7 * * * *" # hourly: advance-week check
   workflow_dispatch:
     inputs:
       run_sync_week:
         description: "Also run sync-week?"
+        required: false
+        default: "false"
+      run_advance_week:
+        description: "Also run advance-week?"
         required: false
         default: "false"
 
@@ -20,13 +25,7 @@ jobs:
   run:
     runs-on: ubuntu-latest
     steps:
-      # ------------------------
-      # EVERY 5 MINUTES (or manual run)
-      # ------------------------
       - name: Sync games
-        if: >
-          (github.event_name == 'schedule' && github.event.schedule == '*/5 * * * *') ||
-          (github.event_name == 'workflow_dispatch')
         run: |
           echo "==> Syncing NFL games"
           curl -fsS --retry 5 --retry-delay 5 --retry-all-errors --max-time 30 \
@@ -36,9 +35,6 @@ jobs:
             -d '{"league_id":"${{ secrets.LEAGUE_ID }}"}'
 
       - name: Grade week
-        if: >
-          (github.event_name == 'schedule' && github.event.schedule == '*/5 * * * *') ||
-          (github.event_name == 'workflow_dispatch')
         run: |
           echo "==> Grading picks"
           curl -fsS --retry 5 --retry-delay 5 --retry-all-errors --max-time 30 \
@@ -48,9 +44,6 @@ jobs:
             -d '{"league_id":"${{ secrets.LEAGUE_ID }}"}'
 
       - name: Send pick reminders
-        if: >
-          (github.event_name == 'schedule' && github.event.schedule == '*/5 * * * *') ||
-          (github.event_name == 'workflow_dispatch')
         run: |
           echo "==> Sending pick reminders"
           curl -fsS --retry 5 --retry-delay 5 --retry-all-errors --max-time 30 \
@@ -59,11 +52,8 @@ jobs:
             -H "x-cron-secret: ${{ secrets.CRON_SECRET }}" \
             -d '{"league_id":"${{ secrets.LEAGUE_ID }}"}'
 
-      # ------------------------
-      # HOURLY: advance-week check
-      # ------------------------
       - name: Advance week (if current week is fully final)
-        if: github.event_name == 'schedule' && github.event.schedule == '7 * * * *'
+        if: github.event.inputs.run_advance_week == 'true'
         run: |
           echo "==> Checking if we should advance to next week"
           CODE=$(curl -sS --retry 5 --retry-delay 5 --retry-all-errors --max-time 30 \
@@ -78,13 +68,8 @@ jobs:
             exit 1
           fi
 
-      # ------------------------
-      # DAILY (or optionally manual)
-      # ------------------------
       - name: Sync week config
-        if: >
-          (github.event_name == 'schedule' && github.event.schedule == '0 16 * * *') ||
-          (github.event_name == 'workflow_dispatch' && inputs.run_sync_week == 'true')
+        if: github.event.inputs.run_sync_week == 'true'
         run: |
           echo "==> Syncing week config"
           curl -fsS --retry 5 --retry-delay 5 --retry-all-errors --max-time 30 \
