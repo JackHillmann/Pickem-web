@@ -151,9 +151,9 @@ export default function MatchupsPage() {
 
         <button
           className="text-sm text-gray-900 underline dark:text-zinc-100"
-          onClick={() => router.push("/")}
+          onClick={() => router.push("/picks")}
         >
-          ← Home
+          ← Picks
         </button>
       </header>
 

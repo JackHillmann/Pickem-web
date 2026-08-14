@@ -138,9 +138,9 @@ export default function StandingsPage() {
 <div className="mb-3 flex items-center justify-between">
   <button
 className="text-sm text-gray-900 underline dark:text-zinc-100"
-    onClick={() => router.push("/")}
+    onClick={() => router.push("/picks")}
   >
-    ← Home
+    ← Picks
   </button>
 
   <h1 className="text-xl font-semibold">

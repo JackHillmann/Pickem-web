@@ -172,9 +172,9 @@ export default function WeekPage() {
       <div className="mb-3 flex items-center justify-between">
   <button
     className="text-sm underline"
-    onClick={() => router.push("/")}
+    onClick={() => router.push("/picks")}
   >
-    ← Home
+    ← Picks
   </button>
 </div>
 
