@@ -33,7 +33,7 @@ jobs:
             -X POST "${{ secrets.APP_URL }}/api/sync-games" \
             -H "content-type: application/json" \
             -H "x-cron-secret: ${{ secrets.CRON_SECRET }}" \
-            -d '{"season_type":2, "league_id":"${{ secrets.LEAGUE_ID }}"}'
+            -d '{"league_id":"${{ secrets.LEAGUE_ID }}"}'
 
       - name: Grade week
         if: >
