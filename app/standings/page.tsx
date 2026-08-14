@@ -166,17 +166,19 @@ className="text-sm text-gray-900 underline dark:text-zinc-100"
 
       <section className="mt-4 rounded border">
         <div className="grid grid-cols-12 gap-2 border-b p-3 text-xs font-semibold text-gray-600">
-          <div className="col-span-6">Player</div>
+          <div className="col-span-4">Player</div>
           <div className="col-span-2 text-right">W</div>
           <div className="col-span-2 text-right">L</div>
+          <div className="col-span-2 text-right">T</div>
           <div className="col-span-2 text-right">Pending</div>
         </div>
 
         {rows.map((r) => (
           <div key={r.user_id} className="grid grid-cols-12 gap-2 border-b p-3 text-sm">
-            <div className="col-span-6 font-medium">{r.name}</div>
+            <div className="col-span-4 font-medium">{r.name}</div>
             <div className="col-span-2 text-right">{r.wins}</div>
             <div className="col-span-2 text-right">{r.losses}</div>
+            <div className="col-span-2 text-right">{r.push}</div>
             <div className="col-span-2 text-right">{r.pending}</div>
           </div>
         ))}

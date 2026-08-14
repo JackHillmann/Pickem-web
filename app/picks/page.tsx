@@ -119,7 +119,7 @@ export default function PicksPage() {
 
 
   const [resultByWeekTeam, setResultByWeekTeam] = useState<
-    Map<string, "win" | "loss" | "pending">
+    Map<string, "win" | "loss" | "pending" | "push">
   >(new Map());
 
   function keyWeekTeam(week: number, team: string) {
@@ -280,7 +280,7 @@ export default function PicksPage() {
         return;
       }
 
-      const m = new Map<string, "win" | "loss" | "pending">();
+      const m = new Map<string, "win" | "loss" | "pending" | "push">();
       (prRows ?? []).forEach((r: any) => {
         m.set(keyWeekTeam(r.week_number, r.team_abbr), r.result);
       });
@@ -385,7 +385,7 @@ export default function PicksPage() {
       .eq("season_type", league.current_season_type)
       .eq("user_id", userId!);
 
-    const m = new Map<string, "win" | "loss" | "pending">();
+    const m = new Map<string, "win" | "loss" | "pending" | "push">();
     (prRows ?? []).forEach((r: any) => {
       m.set(keyWeekTeam(r.week_number, r.team_abbr), r.result);
     });
@@ -827,6 +827,8 @@ export default function PicksPage() {
                   ? "flex items-center gap-1.5 rounded border border-emerald-300 bg-emerald-50 px-2 py-1 text-xs text-emerald-800"
                   : res === "loss"
                   ? "flex items-center gap-1.5 rounded border border-red-300 bg-red-50 px-2 py-1 text-xs text-red-800"
+                  : res === "push"
+                  ? "flex items-center gap-1.5 rounded border border-amber-300 bg-amber-50 px-2 py-1 text-xs text-amber-800"
                   : "flex items-center gap-1.5 rounded border px-2 py-1 text-xs text-gray-700";
 
               return (

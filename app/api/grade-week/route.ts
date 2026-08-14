@@ -63,6 +63,7 @@ export async function POST(req: Request) {
     // final doesn't depend on any other game in the week having finished.
     const finalTeams = new Set<string>();
     const winners = new Set<string>();
+    const tiedTeams = new Set<string>(); // final with no winner_abbr = tie
     let allFinal = true;
 
     for (const g of games ?? []) {
@@ -72,13 +73,22 @@ export async function POST(req: Request) {
       }
       if (g.home_abbr) finalTeams.add(g.home_abbr);
       if (g.away_abbr) finalTeams.add(g.away_abbr);
-      if (g.winner_abbr) winners.add(g.winner_abbr);
+      if (g.winner_abbr) {
+        winners.add(g.winner_abbr);
+      } else {
+        if (g.home_abbr) tiedTeams.add(g.home_abbr);
+        if (g.away_abbr) tiedTeams.add(g.away_abbr);
+      }
     }
 
     const results = (allPicks ?? []).map((p: any) => {
-      let result: "win" | "loss" | "pending" = "pending";
+      let result: "win" | "loss" | "pending" | "push" = "pending";
       if (finalTeams.has(p.team_abbr)) {
-        result = winners.has(p.team_abbr) ? "win" : "loss";
+        result = tiedTeams.has(p.team_abbr)
+          ? "push"
+          : winners.has(p.team_abbr)
+          ? "win"
+          : "loss";
       }
 
       return {
