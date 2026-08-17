@@ -211,11 +211,12 @@ export default function WeekPage() {
               const isMe = m.user_id === userId;
               const picked = picksByUser.get(m.user_id);
 
-              // Before reveal, only show your own row; others show as "Hidden"
+              // Before reveal, only show your own picks; others show their
+              // name (not secret) with picks hidden
               if (!revealed && !isMe) {
                 return (
                   <div key={m.user_id} className="flex items-center justify-between rounded border p-3">
-                    <div className="text-sm font-medium">Member</div>
+                    <div className="text-sm font-medium">{m.display_name || "Member"}</div>
                     <div className="text-sm text-gray-500">Hidden until kickoff</div>
                   </div>
                 );
