@@ -70,7 +70,7 @@ export default function HomePage() {
           {authed ? (
             <>
               <button
-                className="w-full rounded-xl border px-4 py-3"
+                className="w-full rounded-xl bg-emerald-600 px-4 py-3 font-semibold text-white shadow-md hover:bg-emerald-700"
                 onClick={() => router.push("/picks")}
               >
                 Go to picks
