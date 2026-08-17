@@ -286,6 +286,60 @@ export async function POST(req: Request) {
     }
 
     if ((provider.events ?? []).length === 0) {
+      // Preseason runs out of scheduled weeks before the regular season
+      // starts. Rather than requiring a manual leagues-row flip once that
+      // happens, check whether regular-season week 1 is ready at the
+      // provider and promote automatically.
+      if (lg.current_season_type === 1) {
+        const regularSeasonCheck = await fetchEspnScoreboard({
+          season_year: lg.season_year,
+          week_number: 1,
+          season_type: 2,
+        });
+
+        if (regularSeasonCheck.ok && (regularSeasonCheck.events ?? []).length > 0) {
+          const sgReg = await syncGamesInline({
+            league_id,
+            season_year: lg.season_year,
+            week_number: 1,
+            season_type: 2,
+          });
+
+          if (sgReg.ok) {
+            const swReg = await syncWeekInline({
+              league_id,
+              season_year: lg.season_year,
+              week_number: 1,
+              season_type: 2,
+            });
+
+            if (swReg.ok) {
+              const { error: promoteErr } = await supabaseAdmin
+                .from("leagues")
+                .update({ current_week: 1, current_season_type: 2 })
+                .eq("id", league_id);
+
+              if (promoteErr) throw promoteErr;
+
+              return NextResponse.json({
+                ok: true,
+                league_id,
+                name: lg.name,
+                advanced: true,
+                promoted_to_regular_season: true,
+                season_year: lg.season_year,
+                from_season_type: 1,
+                from_week: lg.current_week,
+                to_season_type: 2,
+                to_week: 1,
+                sync_games: sgReg,
+                sync_week: swReg,
+              });
+            }
+          }
+        }
+      }
+
       return NextResponse.json({
         ok: true,
         league_id,
