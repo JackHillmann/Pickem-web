@@ -30,6 +30,8 @@ type PickRow = {
   team_abbr: string;
 };
 
+type ByeRow = { user_id: string };
+
 function fmt(dtIso: string) {
   const d = new Date(dtIso);
   return d.toLocaleString(undefined, {
@@ -51,6 +53,7 @@ export default function WeekPage() {
   const [weekCfg, setWeekCfg] = useState<WeekCfg | null>(null);
   const [roster, setRoster] = useState<RosterRow[]>([]);
   const [picks, setPicks] = useState<PickRow[]>([]);
+  const [byeUserIds, setByeUserIds] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(true);
   const [err, setErr] = useState<string | null>(null);
 
@@ -159,6 +162,23 @@ export default function WeekPage() {
       }
       setPicks((pickRows ?? []) as any);
 
+      // 5) Byes — same reveal semantics as picks (RLS scopes to your own
+      // row until reveal, then everyone's)
+      const { data: byeRows, error: byeErr } = await supabase
+        .from("byes")
+        .select("user_id")
+        .eq("league_id", lg.id)
+        .eq("season_year", lg.season_year)
+        .eq("week_number", weekNumber)
+        .eq("season_type", lg.current_season_type);
+
+      if (byeErr) {
+        setErr(byeErr.message);
+        setBusy(false);
+        return;
+      }
+      setByeUserIds(new Set(((byeRows ?? []) as ByeRow[]).map((b) => b.user_id)));
+
       setBusy(false);
     }
 
@@ -222,7 +242,8 @@ export default function WeekPage() {
                 );
               }
 
-              // After reveal (or if it's you), show picks or "No picks"
+              // After reveal (or if it's you), show picks, "Bye", or "No picks"
+              const onBye = byeUserIds.has(m.user_id);
               const p1 = picked?.[1];
               const p2 = weekCfg.picks_required === 2 ? picked?.[2] : undefined;
 
@@ -240,15 +261,16 @@ export default function WeekPage() {
                 );
               }
 
-              const right =
-                weekCfg.picks_required === 1 ? (
-                  teamPill(p1)
-                ) : (
-                  <span className="flex items-center gap-3">
-                    {teamPill(p1)}
-                    {teamPill(p2)}
-                  </span>
-                );
+              const right = onBye ? (
+                <span className="text-gray-500 font-normal italic">Bye</span>
+              ) : weekCfg.picks_required === 1 ? (
+                teamPill(p1)
+              ) : (
+                <span className="flex items-center gap-3">
+                  {teamPill(p1)}
+                  {teamPill(p2)}
+                </span>
+              );
 
               return (
                 <div key={m.user_id} className="flex items-center justify-between rounded border p-3">
