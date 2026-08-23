@@ -32,6 +32,19 @@ type PickRow = {
 
 type ByeRow = { user_id: string };
 
+type ResultKind = "win" | "loss" | "pending" | "push";
+
+type PickResultRow = {
+  user_id: string;
+  slot: 1 | 2;
+  team_abbr: string;
+  result: ResultKind;
+};
+
+function keyPick(userId: string, slot: number, teamAbbr: string) {
+  return `${userId}:${slot}:${teamAbbr}`;
+}
+
 function fmt(dtIso: string) {
   const d = new Date(dtIso);
   return d.toLocaleString(undefined, {
@@ -54,6 +67,9 @@ export default function WeekPage() {
   const [roster, setRoster] = useState<RosterRow[]>([]);
   const [picks, setPicks] = useState<PickRow[]>([]);
   const [byeUserIds, setByeUserIds] = useState<Set<string>>(new Set());
+  const [resultByPick, setResultByPick] = useState<Map<string, ResultKind>>(
+    new Map()
+  );
   const [busy, setBusy] = useState(true);
   const [err, setErr] = useState<string | null>(null);
 
@@ -162,6 +178,29 @@ export default function WeekPage() {
       }
       setPicks((pickRows ?? []) as any);
 
+      // 4b) Pick results for this week — graded per-game as each game goes
+      // final (same source the standings page reads), so picks turn
+      // green/red one at a time instead of all at once at week's end.
+      const { data: resultRows, error: resultsErr } = await supabase
+        .from("pick_results")
+        .select("user_id,slot,team_abbr,result")
+        .eq("league_id", lg.id)
+        .eq("season_year", lg.season_year)
+        .eq("week_number", weekNumber)
+        .eq("season_type", lg.current_season_type);
+
+      if (resultsErr) {
+        setErr(resultsErr.message);
+        setBusy(false);
+        return;
+      }
+
+      const resultMap = new Map<string, ResultKind>();
+      ((resultRows ?? []) as PickResultRow[]).forEach((r) => {
+        resultMap.set(keyPick(r.user_id, r.slot, r.team_abbr), r.result);
+      });
+      setResultByPick(resultMap);
+
       // 5) Byes — same reveal semantics as picks (RLS scopes to your own
       // row until reveal, then everyone's)
       const { data: byeRows, error: byeErr } = await supabase
@@ -222,6 +261,10 @@ export default function WeekPage() {
 
       <section className="mt-6 rounded border p-4">
         <h2 className="text-base font-semibold">Picks</h2>
+        <p className="mt-1 text-xs text-gray-500">
+          Picks turn green (win), red (loss) or amber (tie) as each game goes
+          final. Uncolored means that game hasn’t finished yet.
+        </p>
 
         {!weekCfg ? (
           <p className="mt-2 text-sm text-gray-600">No week config.</p>
@@ -247,14 +290,30 @@ export default function WeekPage() {
               const p1 = picked?.[1];
               const p2 = weekCfg.picks_required === 2 ? picked?.[2] : undefined;
 
-              function teamPill(abbr: string | undefined) {
+              function teamPill(abbr: string | undefined, slot: 1 | 2) {
                 if (!abbr) {
                   return (
                     <span className="text-gray-500 font-normal">No picks</span>
                   );
                 }
+
+                // Colored the moment that team's own game goes final; a pick
+                // whose game hasn't finished stays neutral. Keyed on the team
+                // too, so a stale result row can never color the wrong pick.
+                const res =
+                  resultByPick.get(keyPick(m.user_id, slot, abbr)) ?? "pending";
+
+                const cls =
+                  res === "win"
+                    ? "inline-flex items-center gap-1.5 rounded border border-emerald-300 bg-emerald-50 px-2 py-1 font-semibold text-emerald-800"
+                    : res === "loss"
+                    ? "inline-flex items-center gap-1.5 rounded border border-red-300 bg-red-50 px-2 py-1 font-semibold text-red-800"
+                    : res === "push"
+                    ? "inline-flex items-center gap-1.5 rounded border border-amber-300 bg-amber-50 px-2 py-1 font-semibold text-amber-800"
+                    : "inline-flex items-center gap-1.5 rounded border border-transparent px-2 py-1 font-semibold";
+
                 return (
-                  <span className="inline-flex items-center gap-1.5 font-semibold">
+                  <span className={cls} title={`${abbr} • ${res}`}>
                     <TeamLogo abbr={abbr} size={16} />
                     {abbr}
                   </span>
@@ -264,11 +323,11 @@ export default function WeekPage() {
               const right = onBye ? (
                 <span className="text-gray-500 font-normal italic">Bye</span>
               ) : weekCfg.picks_required === 1 ? (
-                teamPill(p1)
+                teamPill(p1, 1)
               ) : (
-                <span className="flex items-center gap-3">
-                  {teamPill(p1)}
-                  {teamPill(p2)}
+                <span className="flex items-center gap-2">
+                  {teamPill(p1, 1)}
+                  {teamPill(p2, 2)}
                 </span>
               );
 
